@@ -1,0 +1,35 @@
+# ── Python (bot/) ──────────────────────────────────────────────
+__pycache__/
+**/__pycache__/
+bot/__pycache__/
+bot/**/__pycache__/
+*.pyc
+*.pyo
+bot/.venv/
+bot/venv/
+venv/
+bot/*.db
+bot/*.db-journal
+bot/data/*.db
+bot/data/*.db-journal
+bot/.env
+bot/.env.local
+.env
+.env.local
+
+# ── Node / Vercel (web/) ───────────────────────────────────────
+web/node_modules/
+web/**/node_modules/
+node_modules/
+web/dist/
+web/**/dist/
+web/.vercel/
+web/.env
+web/.env.local
+web/.env.*.local
+
+# ── OS / editor ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
