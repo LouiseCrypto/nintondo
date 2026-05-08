@@ -92,8 +92,6 @@
       screen = 'landing';
       hapticNotification('error');
       setMainButtonLoading(false);
-      // Re-surface the button so the user can retry
-      showMainButton('🔥 TRY AGAIN', handleGetRoasted);
     }
   }
 
@@ -134,8 +132,17 @@
 
       <div class="landing-art" aria-hidden="true">🎮💀📉</div>
 
+      <button
+        class="btn btn-cta"
+        style:background={accent}
+        style:color={accentText}
+        onclick={handleGetRoasted}
+      >
+        🔥 GET ROASTED
+      </button>
+
       <p class="cta-hint" style:color={hintColor}>
-        Tap <strong>GET ROASTED</strong> to receive your personalised degen profile
+        Your personalised degen profile awaits
       </p>
     </div>
 
@@ -230,7 +237,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 24px 20px 120px; /* bottom padding clears the MainButton */
+    padding: 24px 20px 48px;
     min-height: 100dvh;
     text-align: center;
   }
@@ -261,6 +268,27 @@
   .landing-art {
     font-size: 4rem;
     margin-bottom: 32px;
+  }
+
+  .btn-cta {
+    width: 100%;
+    max-width: 320px;
+    padding: 18px 24px;
+    border-radius: 16px;
+    border: none;
+    font-size: 1.2rem;
+    font-weight: 900;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 24px rgba(168, 85, 247, 0.4);
+    transition: opacity 0.15s, transform 0.1s;
+    font-family: inherit;
+  }
+
+  .btn-cta:active {
+    opacity: 0.85;
+    transform: scale(0.97);
   }
 
   .cta-hint {
