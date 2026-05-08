@@ -9,8 +9,4 @@ export default defineConfig({
     // Inline assets under 10 KB so the first paint doesn't wait on extra requests
     assetsInlineLimit: 10_240,
   },
-  // Make the API base URL available to the frontend at build time
-  define: {
-    __API_BASE__: JSON.stringify(process.env.PUBLIC_API_BASE ?? ''),
-  },
 });
