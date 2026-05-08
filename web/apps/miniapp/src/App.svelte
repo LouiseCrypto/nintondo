@@ -33,6 +33,7 @@
   ];
   let slotIndex = $state(0);
   let slotTimer: ReturnType<typeof setInterval> | null = null;
+  let safetyTimer: ReturnType<typeof setTimeout> | null = null;
   let cardLoaded = $state(false);
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
@@ -43,6 +44,7 @@
 
   onDestroy(() => {
     clearSlot();
+    clearSafety();
     hideMainButton();
   });
 
@@ -62,12 +64,33 @@
     }
   }
 
+  function clearSafety() {
+    if (safetyTimer !== null) {
+      clearTimeout(safetyTimer);
+      safetyTimer = null;
+    }
+  }
+
+  function abortToLanding(message: string) {
+    clearSlot();
+    clearSafety();
+    error = message;
+    screen = 'landing';
+    setMainButtonLoading(false);
+  }
+
   async function handleGetRoasted() {
     error = null;
     screen = 'generating';
     setMainButtonLoading(true);
     startSlot();
     hapticImpact('medium');
+
+    // Safety net: if nothing resolves in 15s, force back to landing
+    // (fetchRoast has its own 12s timeout, this catches anything else)
+    safetyTimer = setTimeout(() => {
+      abortToLanding('Took too long — try again');
+    }, 15_000);
 
     try {
       const userId = getUserId() ?? 0;
@@ -81,17 +104,15 @@
       await new Promise((r) => setTimeout(r, 2000));
 
       clearSlot();
+      clearSafety();
       result = data;
       cardLoaded = false;
       screen = 'reveal';
       hapticNotification('success');
       hideMainButton();
     } catch (err) {
-      clearSlot();
-      error = err instanceof Error ? err.message : 'Something went wrong';
-      screen = 'landing';
+      abortToLanding(err instanceof Error ? err.message : 'Something went wrong — try again');
       hapticNotification('error');
-      setMainButtonLoading(false);
     }
   }
 
