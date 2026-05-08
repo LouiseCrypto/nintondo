@@ -1,0 +1,17 @@
+{
+  "name": "nintondo-web",
+  "private": true,
+  "scripts": {
+    "build": "pnpm --filter miniapp build",
+    "dev": "pnpm --filter miniapp dev",
+    "typecheck": "pnpm --filter miniapp typecheck && tsc --noEmit -p tsconfig.api.json"
+  },
+  "dependencies": {
+    "@vercel/og": "^0.11.1",
+    "react": "^19.2.6"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,9 @@
+packages:
+  - 'apps/miniapp'
+
+# sharp is required by @vercel/og for server-side image processing
+onlyBuiltDependencies:
+  - sharp
+
+allowBuilds:
+  sharp: true
