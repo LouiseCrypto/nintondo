@@ -1,12 +1,15 @@
 // POST /api/roast
-// Body: { userId: number, username?: string, firstName?: string, category?: string }
+// Body: { userId: number, username?: string, firstName?: string,
+//         category?: string, avatarUrl?: string }
 // Returns: { roast, stats, cardUrl }
 //
-// In-memory anti-repetition resets on cold start — acceptable for this surface.
+// Uses the standard Web API (Request/Response) so it runs on Vercel's
+// Node.js runtime without needing @vercel/node.
+//
+// In-memory anti-repetition resets on cold start — acceptable here.
 // The Python bot's SQLite owns long-term anti-rep for chat-side roasts.
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import roastsData from './_shared/roasts.json' assert { type: 'json' };
+import roastsData from './_shared/roasts.json';
 import { generateStats } from './_shared/stats.js';
 
 interface Roast {
@@ -31,10 +34,9 @@ function pickRoast(userId: number, category?: string): Roast {
 
   const recent = recentlyServed.get(userId) ?? [];
   const fresh = pool.filter((r) => !recent.includes(r.id));
-  // Fall back to full pool if every roast has been served recently
+  // Fall back to full pool if every roast has been recently served
   const candidates = fresh.length > 0 ? fresh : pool;
 
-  // Weighted random pick
   const totalWeight = candidates.reduce((s, r) => s + r.weight, 0);
   let cursor = Math.random() * totalWeight;
   for (const roast of candidates) {
@@ -49,44 +51,28 @@ function recordServed(userId: number, roastId: string): void {
   recentlyServed.set(userId, [roastId, ...recent].slice(0, MAX_RECENT));
 }
 
-function resolveName(body: { firstName?: string; username?: string }): string {
-  return body.firstName ?? body.username ?? 'anon';
-}
-
-function buildCardUrl(
-  baseUrl: string,
-  userId: number,
-  roastId: string,
-  name: string,
-  avatarUrl?: string,
-): string {
-  const params = new URLSearchParams({
-    u: String(userId),
-    r: roastId,
-    n: name,
+function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
   });
-  if (avatarUrl) params.set('a', avatarUrl);
-  return `${baseUrl}/api/card?${params.toString()}`;
 }
 
-export default function handler(req: VercelRequest, res: VercelResponse): void {
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method Not Allowed' });
-    return;
+export default async function handler(request: Request): Promise<Response> {
+  if (request.method !== 'POST') {
+    return json({ error: 'Method Not Allowed' }, 405);
   }
 
-  const body = req.body as {
-    userId?: unknown;
-    username?: unknown;
-    firstName?: unknown;
-    category?: unknown;
-    avatarUrl?: unknown;
-  };
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: 'Invalid JSON body' }, 400);
+  }
 
   const userId = typeof body.userId === 'number' ? body.userId : Number(body.userId);
   if (!Number.isFinite(userId)) {
-    res.status(400).json({ error: 'userId must be a number' });
-    return;
+    return json({ error: 'userId must be a number' }, 400);
   }
 
   const category = typeof body.category === 'string' ? body.category : undefined;
@@ -97,18 +83,24 @@ export default function handler(req: VercelRequest, res: VercelResponse): void {
   const roast = pickRoast(userId, category);
   recordServed(userId, roast.id);
 
-  const name = resolveName({ firstName, username });
+  const name = firstName ?? username ?? 'anon';
   const resolvedText = roast.text.replace(/\{name\}/g, name);
-
   const stats = generateStats(userId);
 
-  // Construct the card URL — base comes from env, falls back to Vercel's own URL
-  const rawBase = process.env.PUBLIC_API_BASE ?? `https://${req.headers.host}`;
+  // Base URL: env var in prod, Host header as fallback during local vercel dev
+  const host = request.headers.get('host') ?? 'localhost:3000';
+  const rawBase = process.env.PUBLIC_API_BASE ?? `https://${host}`;
   const baseUrl = rawBase.replace(/\/$/, '');
 
-  const cardUrl = buildCardUrl(baseUrl, userId, roast.id, name, avatarUrl);
+  const params = new URLSearchParams({
+    u: String(userId),
+    r: roast.id,
+    n: name,
+  });
+  if (avatarUrl) params.set('a', avatarUrl);
+  const cardUrl = `${baseUrl}/api/card?${params.toString()}`;
 
-  res.status(200).json({
+  return json({
     roast: { ...roast, text: resolvedText },
     stats,
     cardUrl,
