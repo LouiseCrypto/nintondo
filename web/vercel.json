@@ -1,8 +1,4 @@
 {
   "buildCommand": "pnpm build",
-  "outputDirectory": "apps/miniapp/dist",
-  "functions": {
-    "api/card.ts":  { "maxDuration": 10 },
-    "api/roast.ts": { "maxDuration": 5 }
-  }
+  "outputDirectory": "apps/miniapp/dist"
 }

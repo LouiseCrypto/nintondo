@@ -3,14 +3,10 @@
 //         category?: string, avatarUrl?: string }
 // Returns: { roast, stats, cardUrl }
 //
-// Edge Runtime — same as card.ts. The Web API (Request/Response) handler
-// style only works correctly on Edge; Node.js runtime expects (req, res).
-//
-// In-memory anti-repetition resets on cold start — acceptable here.
-// The Python bot's SQLite owns long-term anti-rep for chat-side roasts.
+// Node.js runtime (no edge config) — uses @vercel/node handler style
+// which supports relative imports from _shared/ without restriction.
 
-export const config = { runtime: 'edge' };
-
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import roastsData from './_shared/roasts.json';
 import { generateStats } from './_shared/stats.js';
 
@@ -36,7 +32,6 @@ function pickRoast(userId: number, category?: string): Roast {
 
   const recent = recentlyServed.get(userId) ?? [];
   const fresh = pool.filter((r) => !recent.includes(r.id));
-  // Fall back to full pool if every roast has been recently served
   const candidates = fresh.length > 0 ? fresh : pool;
 
   const totalWeight = candidates.reduce((s, r) => s + r.weight, 0);
@@ -53,33 +48,23 @@ function recordServed(userId: number, roastId: string): void {
   recentlyServed.set(userId, [roastId, ...recent].slice(0, MAX_RECENT));
 }
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
-
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method !== 'POST') {
-    return json({ error: 'Method Not Allowed' }, 405);
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method Not Allowed' });
+    return;
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
-    return json({ error: 'Invalid JSON body' }, 400);
-  }
+  const body = req.body as Record<string, unknown> ?? {};
 
   const userId = typeof body.userId === 'number' ? body.userId : Number(body.userId);
   if (!Number.isFinite(userId)) {
-    return json({ error: 'userId must be a number' }, 400);
+    res.status(400).json({ error: 'userId must be a number' });
+    return;
   }
 
-  const category = typeof body.category === 'string' ? body.category : undefined;
+  const category  = typeof body.category  === 'string' ? body.category  : undefined;
   const firstName = typeof body.firstName === 'string' ? body.firstName : undefined;
-  const username = typeof body.username === 'string' ? body.username : undefined;
+  const username  = typeof body.username  === 'string' ? body.username  : undefined;
   const avatarUrl = typeof body.avatarUrl === 'string' ? body.avatarUrl : undefined;
 
   const roast = pickRoast(userId, category);
@@ -89,22 +74,16 @@ export default async function handler(request: Request): Promise<Response> {
   const resolvedText = roast.text.replace(/\{name\}/g, name);
   const stats = generateStats(userId);
 
-  // Base URL from the request's own host — works in both prod and local vercel dev
-  const host = request.headers.get('host') ?? 'localhost:3000';
+  const host = Array.isArray(req.headers.host) ? req.headers.host[0] : req.headers.host ?? 'localhost:3000';
   const proto = host.startsWith('localhost') ? 'http' : 'https';
   const baseUrl = `${proto}://${host}`;
 
-  const params = new URLSearchParams({
-    u: String(userId),
-    r: roast.id,
-    n: name,
-  });
+  const params = new URLSearchParams({ u: String(userId), r: roast.id, n: name });
   if (avatarUrl) params.set('a', avatarUrl);
-  const cardUrl = `${baseUrl}/api/card?${params.toString()}`;
 
-  return json({
+  res.status(200).json({
     roast: { ...roast, text: resolvedText },
     stats,
-    cardUrl,
+    cardUrl: `${baseUrl}/api/card?${params.toString()}`,
   });
 }
