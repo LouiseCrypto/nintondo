@@ -3,11 +3,13 @@
 //         category?: string, avatarUrl?: string }
 // Returns: { roast, stats, cardUrl }
 //
-// Uses the standard Web API (Request/Response) so it runs on Vercel's
-// Node.js runtime without needing @vercel/node.
+// Edge Runtime — same as card.ts. The Web API (Request/Response) handler
+// style only works correctly on Edge; Node.js runtime expects (req, res).
 //
 // In-memory anti-repetition resets on cold start — acceptable here.
 // The Python bot's SQLite owns long-term anti-rep for chat-side roasts.
+
+export const config = { runtime: 'edge' };
 
 import roastsData from './_shared/roasts.json';
 import { generateStats } from './_shared/stats.js';
@@ -87,10 +89,10 @@ export default async function handler(request: Request): Promise<Response> {
   const resolvedText = roast.text.replace(/\{name\}/g, name);
   const stats = generateStats(userId);
 
-  // Base URL: env var in prod, Host header as fallback during local vercel dev
+  // Base URL from the request's own host — works in both prod and local vercel dev
   const host = request.headers.get('host') ?? 'localhost:3000';
-  const rawBase = process.env.PUBLIC_API_BASE ?? `https://${host}`;
-  const baseUrl = rawBase.replace(/\/$/, '');
+  const proto = host.startsWith('localhost') ? 'http' : 'https';
+  const baseUrl = `${proto}://${host}`;
 
   const params = new URLSearchParams({
     u: String(userId),

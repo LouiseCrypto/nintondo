@@ -2,7 +2,7 @@
   "buildCommand": "pnpm build",
   "outputDirectory": "apps/miniapp/dist",
   "functions": {
-    "api/card.ts":  { "memory": 1024, "maxDuration": 10 },
-    "api/roast.ts": { "memory": 512,  "maxDuration": 5 }
+    "api/card.ts":  { "runtime": "edge", "maxDuration": 10 },
+    "api/roast.ts": { "runtime": "edge", "maxDuration": 5 }
   }
 }
