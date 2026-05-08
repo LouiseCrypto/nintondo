@@ -35,6 +35,7 @@
   let slotTimer: ReturnType<typeof setInterval> | null = null;
   let safetyTimer: ReturnType<typeof setTimeout> | null = null;
   let cardLoaded = $state(false);
+  let diagResult = $state<string | null>(null);
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
   onMount(() => {
@@ -116,6 +117,22 @@
     }
   }
 
+  async function testApi() {
+    diagResult = 'calling /api/roast…';
+    try {
+      const res = await fetch('/api/roast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 1, firstName: 'Test' }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      const text = await res.text();
+      diagResult = `${res.status}\n${text.slice(0, 300)}`;
+    } catch (e) {
+      diagResult = `ERROR: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+
   function handleRoastAgain() {
     result = null;
     error = null;
@@ -165,6 +182,14 @@
       <p class="cta-hint" style:color={hintColor}>
         Your personalised degen profile awaits
       </p>
+
+      <!-- Diagnostic: tap to test the API directly and see raw response -->
+      <button class="btn-diag" onclick={testApi}>🔧 test api</button>
+      {#if diagResult}
+        <pre class="diag-output">{diagResult}</pre>
+      {/if}
+
+      <p class="build-stamp" style:color={hintColor}>build: 2026-05-09a</p>
     </div>
 
   <!-- ── GENERATING SCREEN ──────────────────────────────────────────── -->
@@ -327,6 +352,38 @@
     margin-bottom: 24px;
     max-width: 300px;
     color: #fca5a5;
+  }
+
+  .btn-diag {
+    margin-top: 24px;
+    background: transparent;
+    border: 1px dashed #334155;
+    color: #475569;
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: monospace;
+  }
+
+  .diag-output {
+    margin-top: 8px;
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 0.7rem;
+    color: #94a3b8;
+    text-align: left;
+    max-width: 320px;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  .build-stamp {
+    margin-top: 16px;
+    font-size: 0.65rem;
+    font-family: monospace;
   }
 
   /* ── Generating ──────────────────────────────────────────────────── */
