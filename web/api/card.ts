@@ -7,10 +7,56 @@
 
 import { ImageResponse } from '@vercel/og';
 import React from 'react';
-import roastsData from './_shared/roasts.json';
-import { generateStats, type DegenStats } from './_shared/stats.js';
 
 export const config = { runtime: 'edge' };
+
+// ── Stats generator (inlined — Edge Runtime cannot import from _shared/) ──
+
+interface DegenStats {
+  paperhandIndex: number; liquidationRisk: string; mentalState: string;
+  lastBoughtTheTop: string; favoriteCope: string; netWorthDelta: string;
+}
+
+function mulberry32(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let z = Math.imul(s ^ (s >>> 15), 1 | s);
+    z = (z + Math.imul(z ^ (z >>> 7), 61 | z)) ^ z;
+    return ((z ^ (z >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function isoWeek(d: Date): number {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+const LIQ  = ['TERMINAL','CRITICAL','SEVERE','DIRE','CATASTROPHIC','EXTREME','MODERATE','ELEVATED'];
+const MEN  = ['COPING','DELUSIONAL','ROPING','DISSOCIATING','PRAYING','BLAMING WHALES','CONSIDERING THERAPY','SURPRISINGLY OKAY'];
+const TOPS = ['yesterday','2 days ago','3 days ago','last week','2 weeks ago','last month','3 months ago','6 months ago','during the last bull run','when Mario said it was "guaranteed"','the exact moment it peaked'];
+const COPE = ['"wagmi"','"zoom out"','"this is the accumulation zone"','"the whales are suppressing it"','"down 90% is just up 1000% inverted"','"my cost basis is basically zero"','"the fundamentals haven\'t changed"','"just gotta wait for the next cycle"','"this is actually bullish"','"technically not a loss if I don\'t sell"'];
+const DELT = ['-73% YTD','-87% YTD','-91% YTD','-64% YTD','-99.2% from ATH','-82% since "going all in"','-68% this cycle','+0.3% (gas fees not included)','-100% (margin call, RIP)'];
+
+function generateStats(userId: number): DegenStats {
+  const seed = (((userId * 2654435761) >>> 0) + isoWeek(new Date()) * 1234567891) >>> 0;
+  const rand = mulberry32(seed);
+  const bh = (r: number, b = 2.5) => 1 - Math.pow(1 - r, b);
+  return {
+    paperhandIndex:   Math.round(bh(rand()) * 100),
+    liquidationRisk:  LIQ[Math.min(Math.floor(bh(rand(), 3) * LIQ.length), LIQ.length - 1)],
+    mentalState:      MEN[Math.min(Math.floor(bh(rand(), 3) * MEN.length), MEN.length - 1)],
+    lastBoughtTheTop: TOPS[Math.floor(rand() * TOPS.length)],
+    favoriteCope:     COPE[Math.floor(rand() * COPE.length)],
+    netWorthDelta:    DELT[Math.min(Math.floor(bh(rand(), 2) * DELT.length), DELT.length - 1)],
+  };
+}
+
+// ── Roast lookup (inlined subset — same reason) ───────────────────────────
+const ROAST_MAP: Record<string, string> = {
+  r001:'welcome to the degen asylum, {name} — check your wallet at the door',r002:'mario saw you join and immediately went back to snorting mushroom dust, {name}',r003:'pikachu shorted you the second you walked in, {name} — and he\'s already in profit',r004:'DK called it — {name} joins exactly when the chart looks worst',r005:'peach saw your portfolio and quietly left the room, {name}',r006:'luigi was about to roast you, {name}, but he\'s too busy crying about his own bags',r007:'bowser sent {name} a welcome gift — a copy of \'How to Lose Money in 30 Days\'',r008:'yoshi ate your entry price, {name} — it wasn\'t worth digesting',r009:'link checked the ancient scrolls for {name}\'s financial future. the scrolls just said \'lol\'',r010:'the red flag count for {name} is already above the candle wick',r011:'oh great, another one — {name} has arrived to help us all feel better about our decisions',r012:'mario paused mid-snort to say \'{name} is built different\' — he says that about everyone',r013:'mate, you really replied to me — {name} out here testing fate with both hands',r014:'mario looked at your reply, {name}, and went back to counting imaginary coins',r015:'pikachu watched you type that, {name}, and discharged 50,000 volts of secondhand embarrassment',r016:'DK benched 300kg this morning. your reply still weighs less than his IQ, {name}',r017:'peach read that, {name}, sighed, and updated her \'people to avoid\' spreadsheet',r018:'luigi facepalmed so hard he knocked over his own sadness jar, {name}',r019:'bowser had you flagged for \'terminally online\' behaviour, {name}',r020:'yoshi swallowed your take whole, {name}, then immediately spat it back out',r021:'link pulled the master sword just to cut through the nonsense you just typed, {name}',r022:'not a single braincell was harmed typing that because there were none involved, {name}',r023:'the audacity of {name} to reply to me like I haven\'t seen their chart',r024:'mario paused mid-snort to say \'{name} is cooked\' — that\'s a certified fact now',r025:'{name} got caught buying the absolute peak — mario\'s still pointing and laughing',r026:'pikachu\'s leverage is lower than {name}\'s chances of breaking even this cycle',r027:'DK hasn\'t lost this badly at anything since {name} started \'trading\'',r028:'peach blocked {name} after seeing the portfolio — even she has standards',r029:'luigi cried seeing {name}\'s PnL — and luigi cries at everything',r030:'{name} is so bearish they\'re actually bullish on failure — bowser is impressed',r031:'even yoshi won\'t give {name} a ride after what they did to their stop-loss',r032:'link completed every dungeon in hyrule faster than {name} broke even once',r033:'still holding bags from the last cycle, {name}? genuinely impressive dedication to suffering',r034:'your entry price is a war crime, {name} — someone call the financial authorities',r035:'the chart went up just to dump on {name} specifically — it\'s personal',r036:'{name}\'s trading strategy: buy high, panic sell low, blame market manipulation',r037:'mario reviewed {name}\'s wallet and called it \'a cry for help rendered in transactions\'',r038:'pikachu\'s entire net worth is still more than {name}\'s unrealised gains',r039:'DK\'s banana hoard has outperformed {name}\'s portfolio by 4,700% YTD',r040:'{name}: certified proof that financial literacy should be a prerequisite for crypto access',
+};
 
 // ── Default avatar ────────────────────────────────────────────────────────
 // Embedded as a data URI so the Edge function never touches the filesystem.
@@ -218,14 +264,6 @@ function CardTemplate({ name, roastText, stats, avatarSrc }: CardProps) {
 
 // ── Handler ───────────────────────────────────────────────────────────────
 
-interface RoastEntry {
-  id: string;
-  text: string;
-  category: string;
-  character_tag: string;
-  weight: number;
-}
-
 export default async function handler(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const userId = Number(url.searchParams.get('u') ?? '0');
@@ -233,10 +271,8 @@ export default async function handler(request: Request): Promise<Response> {
   const name = url.searchParams.get('n') ?? 'anon';
   const avatarUrlParam = url.searchParams.get('a');
 
-  const roast = (roastsData.roasts as RoastEntry[]).find((r) => r.id === roastId);
-  const roastText = roast
-    ? roast.text.replace(/\{name\}/g, name)
-    : 'the market already roasted you harder than anything I could say';
+  const rawText = ROAST_MAP[roastId] ?? 'the market already roasted you harder than anything I could say';
+  const roastText = rawText.replace(/\{name\}/g, name);
 
   const stats = generateStats(userId);
   const avatarSrc = avatarUrlParam ?? DEFAULT_AVATAR_URI;
