@@ -17,14 +17,19 @@
  * maxDuration and includeFiles are set in vercel.json → functions.
  */
 
+import fs from 'fs';
+import path from 'path';
 import { renderRoastCard } from './_shared/render.js';
-import roastsFile from './_shared/roasts.json' with { type: 'json' };
 
 type RoastEntry = { id: string; text: string; category: string; character_tag: string; weight: number };
 
+// Load roasts via fs — avoids import-assertion bundler issues
+const _roastsPath = path.join(process.cwd(), 'api', '_shared', 'roasts.json');
+const _roastsData = JSON.parse(fs.readFileSync(_roastsPath, 'utf-8')) as { roasts: RoastEntry[] };
+
 // Build a fast lookup map from all seeded roasts
 const ROAST_MAP = new Map<string, RoastEntry>(
-  (roastsFile.roasts as RoastEntry[]).map(r => [r.id, r]),
+  _roastsData.roasts.map(r => [r.id, r]),
 );
 
 const FALLBACK_ROAST: RoastEntry = {
@@ -34,6 +39,9 @@ const FALLBACK_ROAST: RoastEntry = {
   character_tag: 'general',
   weight: 1,
 };
+
+// Tell Vercel to use Node.js runtime (not Edge) — required for fs + _shared imports
+export const config = { runtime: 'nodejs' };
 
 export default async function handler(request: Request): Promise<Response> {
   const url    = new URL(request.url);
