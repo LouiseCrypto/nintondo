@@ -66,6 +66,7 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 ADMIN_USER_ID_RAW = os.getenv("ADMIN_USER_ID", "")
 DB_PATH = os.getenv("DB_PATH", "data/nintondo.db")
+CARD_API_URL = os.getenv("CARD_API_URL", "").rstrip("/")
 ADMIN_USER_ID: int | None = (
     int(ADMIN_USER_ID_RAW) if ADMIN_USER_ID_RAW.strip().isdigit() else None
 )
@@ -130,8 +131,8 @@ def pick_roast(
     chat_id: int,
     category: str,
     character_tag: str | None = None,
-) -> tuple[int, str]:
-    """Return (roast_id, roast_text). Excludes last 50 used per chat."""
+) -> tuple[int, str, str]:
+    """Return (roast_id, roast_text, character_tag). Excludes last 50 used per chat."""
     with get_conn() as conn:
         recent = conn.execute(
             "SELECT roast_id FROM recently_used WHERE chat_id = ? ORDER BY used_at DESC LIMIT 50",
@@ -149,16 +150,17 @@ def pick_roast(
                 params.append(character_tag)
             params.extend(exclude)
             return conn.execute(
-                f"SELECT id, text FROM roasts WHERE category = ? {char_clause} {excl_clause} ORDER BY RANDOM() LIMIT 1",
+                f"SELECT id, text, character_tag FROM roasts WHERE category = ? {char_clause} {excl_clause} ORDER BY RANDOM() LIMIT 1",
                 params,
             ).fetchone()
 
         row = _query(recent_ids) or _query([])
         if row is None:
-            row = conn.execute("SELECT id, text FROM roasts ORDER BY RANDOM() LIMIT 1").fetchone()
+            row = conn.execute("SELECT id, text, character_tag FROM roasts ORDER BY RANDOM() LIMIT 1").fetchone()
 
         roast_id: int = row["id"]
         roast_text: str = row["text"]
+        char_tag: str = row["character_tag"] or "general"
 
         conn.execute(
             "INSERT OR REPLACE INTO recently_used (chat_id, roast_id, used_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
@@ -174,8 +176,8 @@ def pick_roast(
         )
         conn.commit()
 
-    logger.info("Roast sent — chat=%s category=%s roast_id=%s", chat_id, category, roast_id)
-    return roast_id, roast_text
+    logger.info("Roast sent — chat=%s category=%s roast_id=%s char=%s", chat_id, category, roast_id, char_tag)
+    return roast_id, roast_text, char_tag
 
 
 def log_roast(chat_id: int, target_user_id: int, target_name: str, category: str) -> None:
@@ -256,6 +258,71 @@ def mention(user_id: int, first_name: str) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Card helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+import urllib.parse
+
+async def get_avatar_url(bot, user_id: int) -> str | None:
+    """Return the Telegram CDN URL for the user's profile photo, or None."""
+    try:
+        photos = await bot.get_user_profile_photos(user_id, limit=1)
+        if photos.photos:
+            file = await bot.get_file(photos.photos[0][-1].file_id)
+            return file.file_path
+    except Exception:
+        pass
+    return None
+
+
+def build_card_url(
+    user_id: int,
+    roast_id: int,
+    name: str,
+    text: str,
+    char_tag: str,
+    avatar_url: str | None,
+) -> str | None:
+    """Build the Vercel card image URL. Returns None if CARD_API_URL is not set."""
+    if not CARD_API_URL:
+        return None
+    params: dict[str, str] = {
+        "u": str(user_id),
+        "r": str(roast_id),
+        "n": name,
+        "t": text,
+        "c": char_tag,
+    }
+    if avatar_url:
+        params["a"] = avatar_url
+    return f"{CARD_API_URL}/api/card?{urllib.parse.urlencode(params)}"
+
+
+async def send_roast_card(
+    msg,
+    bot,
+    user_id: int,
+    first_name: str,
+    roast_id: int,
+    roast_text: str,
+    char_tag: str,
+    caption: str,
+) -> None:
+    """Send the roast as a card image with caption, falling back to plain text."""
+    avatar_url = await get_avatar_url(bot, user_id)
+    card_url = build_card_url(user_id, roast_id, first_name, roast_text, char_tag, avatar_url)
+
+    if card_url:
+        try:
+            await msg.reply_photo(photo=card_url, caption=caption, parse_mode=ParseMode.HTML)
+            return
+        except Exception as e:
+            logger.warning("Card send failed, falling back to text: %s", e)
+
+    await msg.reply_text(caption, parse_mode=ParseMode.HTML)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Daily roast job helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -276,7 +343,7 @@ def schedule_daily_roast(app: Application, chat_id: int, hour: int) -> None:
 async def daily_roast_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = context.job.chat_id
     try:
-        _, roast_text = pick_roast(chat_id, "universal")
+        _, roast_text, _char = pick_roast(chat_id, "universal")
         update_streak(chat_id)
         intros = [
             "☀️ <b>Good morning, degenerates.</b> Today's complimentary roast:\n\n",
@@ -320,7 +387,7 @@ async def on_member_join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             logger.info("Skipping welcome roast — user %s is blacklisted in chat %s", user.id, chat_id)
             return
 
-        _, roast_text = pick_roast(chat_id, "welcome")
+        _, roast_text, _char = pick_roast(chat_id, "welcome")
         message = inject_name(roast_text, user.id, user.first_name)
         log_roast(chat_id, user.id, user.first_name, "welcome")
         update_streak(chat_id)
@@ -341,7 +408,7 @@ async def on_reply_to_bot(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         user = update.effective_user
         chat_id = update.effective_chat.id
-        _, roast_text = pick_roast(chat_id, "reply")
+        _, roast_text, _char = pick_roast(chat_id, "reply")
         message = inject_name(roast_text, user.id, user.first_name)
         update_streak(chat_id)
         await msg.reply_text(message, parse_mode=ParseMode.HTML)
@@ -374,7 +441,7 @@ async def on_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             return
         _reaction_cooldown[chat_id] = now
 
-        _, roast_text = pick_roast(chat_id, "reply")
+        _, roast_text, _char = pick_roast(chat_id, "reply")
         message = inject_name(roast_text, user.id, user.first_name)
         update_streak(chat_id)
         await context.bot.send_message(
@@ -440,16 +507,19 @@ async def cmd_roast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     parse_mode=ParseMode.HTML,
                 )
                 return
-            _, roast_text = pick_roast(chat_id, "targeted", character_tag)
+            roast_id, roast_text, char_tag = pick_roast(chat_id, "targeted", character_tag)
+            plain_text = roast_text.replace("{name}", target_user.first_name)
             message = inject_name(roast_text, target_user.id, target_user.first_name)
             log_roast(chat_id, target_user.id, target_user.first_name, "targeted")
+            update_streak(chat_id)
+            await send_roast_card(msg, context.bot, target_user.id, target_user.first_name, roast_id, plain_text, char_tag, message)
         else:
             # No target — roast the caller
-            _, roast_text = pick_roast(chat_id, "universal", character_tag)
+            roast_id, roast_text, char_tag = pick_roast(chat_id, "universal", character_tag)
+            plain_text = roast_text.replace("{name}", user.first_name)
             message = inject_name(roast_text, user.id, user.first_name)
-
-        update_streak(chat_id)
-        await msg.reply_text(message, parse_mode=ParseMode.HTML)
+            update_streak(chat_id)
+            await send_roast_card(msg, context.bot, user.id, user.first_name, roast_id, plain_text, char_tag, message)
     except Exception:
         logger.exception("Error in cmd_roast")
 
@@ -478,14 +548,13 @@ async def cmd_roastme(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             "Sir/ma'am, you typed this yourself. That's on you:",
         ]
 
-        _, roast_text = pick_roast(chat_id, "targeted", character_tag)
+        roast_id, roast_text, char_tag = pick_roast(chat_id, "targeted", character_tag)
+        plain_text = roast_text.replace("{name}", user.first_name)
         roast = inject_name(roast_text, user.id, user.first_name)
+        intro = random.choice(intros)
         log_roast(chat_id, user.id, user.first_name, "roastme")
         update_streak(chat_id)
-        await msg.reply_text(
-            f"{random.choice(intros)}\n\n{roast}",
-            parse_mode=ParseMode.HTML,
-        )
+        await send_roast_card(msg, context.bot, user.id, user.first_name, roast_id, plain_text, char_tag, f"{intro}\n\n{roast}")
     except Exception:
         logger.exception("Error in cmd_roastme")
 
@@ -531,8 +600,8 @@ async def cmd_battle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         f1, f2 = fighters[0], fighters[1]
 
         # Pick two different roasts
-        _, roast1_text = pick_roast(chat_id, "targeted")
-        _, roast2_text = pick_roast(chat_id, "targeted")
+        _, roast1_text, _char1 = pick_roast(chat_id, "targeted")
+        _, roast2_text, _char2 = pick_roast(chat_id, "targeted")
 
         r1 = inject_name(roast1_text, f1.id, f1.first_name)
         r2 = inject_name(roast2_text, f2.id, f2.first_name)
@@ -651,7 +720,7 @@ async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         for i in range(5):
             category = 'universal' if i % 2 == 0 else 'targeted'
-            roast_id, roast_text = pick_roast(pseudo_chat_id, category, character_tag)
+            roast_id, roast_text, _char = pick_roast(pseudo_chat_id, category, character_tag)
             if roast_id in seen_ids:
                 continue
             seen_ids.add(roast_id)
