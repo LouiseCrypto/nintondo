@@ -44,39 +44,45 @@ const FALLBACK_ROAST: RoastEntry = {
 export const config = { runtime: 'nodejs' };
 
 export default async function handler(request: Request): Promise<Response> {
-  const url    = new URL(request.url);
-  const userId = Number(url.searchParams.get('u') ?? '0');
-  const roastId = url.searchParams.get('r') ?? '';
-  const name   = url.searchParams.get('n') ?? 'anon';
-  const avatarUrl = url.searchParams.get('a') ?? undefined;
+  try {
+    const url    = new URL(request.url);
+    const userId = Number(url.searchParams.get('u') ?? '0');
+    const roastId = url.searchParams.get('r') ?? '';
+    const name   = url.searchParams.get('n') ?? 'anon';
+    const avatarUrl = url.searchParams.get('a') ?? undefined;
 
-  const roast = ROAST_MAP.get(roastId) ?? FALLBACK_ROAST;
+    const roast = ROAST_MAP.get(roastId) ?? FALLBACK_ROAST;
 
-  // Fetch avatar bytes with timeout — fail gracefully to default avatar
-  let avatarBytes: Uint8Array | null = null;
-  if (avatarUrl) {
-    try {
-      const ctrl  = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 4000);
-      const resp  = await fetch(avatarUrl, { signal: ctrl.signal });
-      clearTimeout(timer);
-      if (resp.ok) avatarBytes = new Uint8Array(await resp.arrayBuffer());
-    } catch { /* use default avatar */ }
+    // Fetch avatar bytes with timeout — fail gracefully to default avatar
+    let avatarBytes: Uint8Array | null = null;
+    if (avatarUrl) {
+      try {
+        const ctrl  = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 4000);
+        const resp  = await fetch(avatarUrl, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (resp.ok) avatarBytes = new Uint8Array(await resp.arrayBuffer());
+      } catch { /* use default avatar */ }
+    }
+
+    const image = await renderRoastCard({
+      userId:      Number.isFinite(userId) ? userId : 0,
+      username:    name,
+      roast,
+      avatarBytes,
+    });
+
+    // Pipe ImageResponse body into a plain Response with cache headers
+    const buf = await image.arrayBuffer();
+    return new Response(buf, {
+      headers: {
+        'Content-Type':  'image/png',
+        'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
+      },
+    });
+  } catch (err: unknown) {
+    // TEMPORARY: surface the real error so we can diagnose — remove before final ship
+    const msg = err instanceof Error ? `${err.message}\n\n${err.stack}` : String(err);
+    return new Response(`CARD ERROR:\n${msg}`, { status: 500, headers: { 'Content-Type': 'text/plain' } });
   }
-
-  const image = await renderRoastCard({
-    userId:      Number.isFinite(userId) ? userId : 0,
-    username:    name,
-    roast,
-    avatarBytes,
-  });
-
-  // Pipe ImageResponse body into a plain Response with cache headers
-  const buf = await image.arrayBuffer();
-  return new Response(buf, {
-    headers: {
-      'Content-Type':  'image/png',
-      'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
-    },
-  });
 }
