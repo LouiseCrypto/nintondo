@@ -264,21 +264,25 @@ def mention(user_id: int, first_name: str) -> str:
 import urllib.parse
 
 async def get_avatar_url(bot, user_id: int) -> str | None:
-    """Return the Telegram CDN URL for the user's profile photo, or None."""
+    """Return the full Telegram CDN URL for the user's profile photo, or None."""
     try:
         photos = await bot.get_user_profile_photos(user_id, limit=1)
         if photos.photos:
             file = await bot.get_file(photos.photos[0][-1].file_id)
-            return file.file_path
-    except Exception:
-        pass
+            # file.file_path may be a relative path — build the full URL explicitly
+            fp = file.file_path or ""
+            if fp.startswith("http"):
+                return fp
+            return f"https://api.telegram.org/file/bot{BOT_TOKEN}/{fp}"
+    except Exception as e:
+        logger.debug("get_avatar_url failed for %s: %s", user_id, e)
     return None
 
 
 def build_card_url(
     user_id: int,
     roast_id: int,
-    name: str,
+    display_name: str,
     text: str,
     char_tag: str,
     avatar_url: str | None,
@@ -289,7 +293,7 @@ def build_card_url(
     params: dict[str, str] = {
         "u": str(user_id),
         "r": str(roast_id),
-        "n": name,
+        "n": display_name,
         "t": text,
         "c": char_tag,
     }
@@ -303,14 +307,17 @@ async def send_roast_card(
     bot,
     user_id: int,
     first_name: str,
+    username: str | None,
     roast_id: int,
     roast_text: str,
     char_tag: str,
     caption: str,
 ) -> None:
     """Send the roast as a card image with caption, falling back to plain text."""
+    # Use @handle for the card display name, fall back to first name
+    display_name = username or first_name
     avatar_url = await get_avatar_url(bot, user_id)
-    card_url = build_card_url(user_id, roast_id, first_name, roast_text, char_tag, avatar_url)
+    card_url = build_card_url(user_id, roast_id, display_name, roast_text, char_tag, avatar_url)
 
     if card_url:
         try:
@@ -512,14 +519,14 @@ async def cmd_roast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             message = inject_name(roast_text, target_user.id, target_user.first_name)
             log_roast(chat_id, target_user.id, target_user.first_name, "targeted")
             update_streak(chat_id)
-            await send_roast_card(msg, context.bot, target_user.id, target_user.first_name, roast_id, plain_text, char_tag, message)
+            await send_roast_card(msg, context.bot, target_user.id, target_user.first_name, target_user.username, roast_id, plain_text, char_tag, message)
         else:
             # No target — roast the caller
             roast_id, roast_text, char_tag = pick_roast(chat_id, "universal", character_tag)
             plain_text = roast_text.replace("{name}", user.first_name)
             message = inject_name(roast_text, user.id, user.first_name)
             update_streak(chat_id)
-            await send_roast_card(msg, context.bot, user.id, user.first_name, roast_id, plain_text, char_tag, message)
+            await send_roast_card(msg, context.bot, user.id, user.first_name, user.username, roast_id, plain_text, char_tag, message)
     except Exception:
         logger.exception("Error in cmd_roast")
 
@@ -554,7 +561,7 @@ async def cmd_roastme(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         intro = random.choice(intros)
         log_roast(chat_id, user.id, user.first_name, "roastme")
         update_streak(chat_id)
-        await send_roast_card(msg, context.bot, user.id, user.first_name, roast_id, plain_text, char_tag, f"{intro}\n\n{roast}")
+        await send_roast_card(msg, context.bot, user.id, user.first_name, user.username, roast_id, plain_text, char_tag, f"{intro}\n\n{roast}")
     except Exception:
         logger.exception("Error in cmd_roastme")
 
