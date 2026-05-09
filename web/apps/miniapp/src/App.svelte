@@ -162,7 +162,7 @@
 
       <p class="build-stamp" style:color={hintColor}>build: 2026-05-09c</p>
       <p class="build-stamp" style:color={hintColor}>
-        uid={getUserId() ?? 'none'} · sdk={getRawInitData() ? 'yes' : 'no'} · platform={tg.platform ?? 'none'}
+        uid={getUserId() ?? 'none'} · sdk={getRawInitData() ? 'yes' : 'no'} · platform={tg.platform ?? 'none'} · win={(window as any).Telegram?.WebApp?.platform ?? 'no-tg'}
       </p>
     </div>
 
