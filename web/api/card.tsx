@@ -149,20 +149,27 @@ export default async function handler(request: Request): Promise<Response> {
       border: '3px solid #1a0a2e', fontFamily: 'BowlbyOne, sans-serif', overflow: 'hidden' }}>
 
       {/* HEADER */}
-      <div style={{ display: 'flex', height: 80, width: '100%' }}>
-        <div style={{ display: 'flex', width: 140, background: RED, alignItems: 'center', justifyContent: 'center', padding: '0 8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+
+        {/* Top logo bar — full width red, logo centred and large */}
+        <div style={{ display: 'flex', height: 72, width: '100%', background: RED, alignItems: 'center', justifyContent: 'center', borderBottom: `3px solid ${YELLOW}` }}>
           {logoUri
-            ? <img src={logoUri} style={{ height: 40, objectFit: 'contain' }} />
-            : <span style={{ color: '#fff', fontSize: 18, letterSpacing: '-1px' }}>NINTONDO</span>}
+            ? <img src={logoUri} style={{ height: 52, objectFit: 'contain' }} />
+            : <span style={{ color: '#fff', fontSize: 38, letterSpacing: 2 }}>NINTONDO</span>}
         </div>
-        <div style={{ display: 'flex', flex: 1, background: BLUE, alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 1 }}>
-          <span style={{ color: YELLOW, fontSize: 13, letterSpacing: 3, lineHeight: 1 }}>CERTIFIED</span>
-          <span style={{ color: '#fff', fontSize: 17, letterSpacing: 2, lineHeight: 1 }}>DEGEN</span>
+
+        {/* Sub-bar: CERTIFIED DEGEN | TYPE */}
+        <div style={{ display: 'flex', height: 36, width: '100%' }}>
+          <div style={{ display: 'flex', flex: 1, background: BLUE, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <span style={{ color: YELLOW, fontSize: 11, letterSpacing: 3 }}>CERTIFIED</span>
+            <span style={{ color: '#fff', fontSize: 13, letterSpacing: 2 }}>DEGEN</span>
+          </div>
+          <div style={{ display: 'flex', width: 200, background: '#1a0a2e', alignItems: 'center', justifyContent: 'center', gap: 6, borderLeft: `2px solid ${YELLOW}` }}>
+            <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 9, letterSpacing: 2 }}>TYPE</span>
+            <span style={{ color: YELLOW, fontSize: typeTag.length > 16 ? 9 : 11, letterSpacing: 1 }}>{typeTag}</span>
+          </div>
         </div>
-        <div style={{ display: 'flex', width: 180, background: RED, alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 2 }}>
-          <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 9, letterSpacing: 2 }}>TYPE</span>
-          <span style={{ color: YELLOW, fontSize: typeTag.length > 16 ? 10 : 13, textAlign: 'center' }}>{typeTag}</span>
-        </div>
+
       </div>
 
       {/* USERNAME ROW */}
