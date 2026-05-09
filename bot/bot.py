@@ -31,7 +31,7 @@ import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent, Update, WebAppInfo
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InlineQueryResultPhoto, InputTextMessageContent, Update, WebAppInfo
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
@@ -706,7 +706,9 @@ async def cmd_roaststreak(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Inline query handler — users type @nintondobot [character] in any chat.
-    Returns 5 roast options; the sender's name replaces {name}.
+    If the query is a card URL (from the Mini App share button), returns an
+    InlineQueryResultPhoto so the card image is sent to the selected chat.
+    Otherwise returns 5 roast text options.
     """
     try:
         query = update.inline_query
@@ -714,18 +716,36 @@ async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         user = query.from_user
-        query_text = (query.query or '').strip().lower()
+        query_text = (query.query or '').strip()
+
+        # ── Card URL share (from Mini App "Send to Chat" button) ──────────────
+        # The Mini App calls switchInlineQuery(cardUrl) — detect it here and
+        # return a photo result so the actual card image is sent to the chat.
+        if query_text.startswith('https://'):
+            card_url = query_text[:512]
+            result = InlineQueryResultPhoto(
+                id=str(uuid.uuid4()),
+                photo_url=card_url,
+                thumbnail_url=card_url,
+                photo_width=540,
+                photo_height=960,
+                caption='🎮 My Nintondo Roast Card\n\n$NINTONDO on TON | via @nintondobot',
+            )
+            await query.answer([result], cache_time=0, is_personal=True)
+            return
+
+        # ── Standard inline roast results ─────────────────────────────────────
+        query_lower = query_text.lower()
 
         # Parse optional character from the query text
         character_tag: str | None = None
         for alias, tag in CHARACTER_ALIASES.items():
-            if alias in query_text.split():
+            if alias in query_lower.split():
                 character_tag = tag
                 break
 
         # Use a negative user-id namespace so recently_used doesn't clash with real chats
         pseudo_chat_id = -(user.id)
-        name = html.escape(user.first_name)
 
         results: list[InlineQueryResultArticle] = []
         seen_ids: set[int] = set()
