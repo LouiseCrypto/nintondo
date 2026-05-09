@@ -160,6 +160,9 @@
       </p>
 
       <p class="build-stamp" style:color={hintColor}>build: 2026-05-09c</p>
+      <p class="build-stamp" style:color={hintColor}>
+        uid={getUserId() ?? 'none'} · name={getFirstName() ?? 'none'} · user={getUsername() ?? 'none'} · photo={getPhotoUrl() ? 'yes' : 'no'}
+      </p>
     </div>
 
   <!-- ── GENERATING ────────────────────────────────────────────────── -->
