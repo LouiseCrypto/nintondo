@@ -34,21 +34,19 @@ export async function shareToChat(cardUrl: string, roastText: string): Promise<v
     }
   } catch { /* fall through */ }
 
-  // 2. Native Web Share API — opens OS share sheet on mobile, user picks any Telegram chat
-  if (typeof navigator.share === 'function') {
-    try {
-      await navigator.share({ title: 'My Nintondo Roast Card', text, url: cardUrl });
+  // 2. tg://msg_url deep link — opens Telegram's native share dialog without any browser
+  try {
+    if (typeof tg.openTelegramLink === 'function') {
+      const deepLink = `tg://msg_url?url=${encodeURIComponent(cardUrl)}&text=${encodeURIComponent(text)}`;
+      tg.openTelegramLink(deepLink);
       return;
-    } catch (e) {
-      // User cancelled — don't fall through to clipboard
-      if (e instanceof Error && e.name === 'AbortError') return;
     }
-  }
+  } catch { /* fall through */ }
 
   // 3. Copy card URL to clipboard as last resort
   try {
     await navigator.clipboard.writeText(cardUrl);
-    alert('Card link copied to clipboard — paste it into any chat!');
+    alert('Card link copied — paste it into any Telegram chat!');
   } catch {
     alert(`Card link:\n${cardUrl}`);
   }
