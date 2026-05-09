@@ -7,7 +7,6 @@
     "typecheck": "pnpm --filter miniapp typecheck && tsc --noEmit -p tsconfig.api.json"
   },
   "dependencies": {
-    "@vercel/node": "^5.7.15",
     "@vercel/og": "^0.11.1",
     "react": "^19.2.6"
   },
