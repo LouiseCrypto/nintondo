@@ -162,7 +162,7 @@
 
       <p class="build-stamp" style:color={hintColor}>build: 2026-05-09c</p>
       <p class="build-stamp" style:color={hintColor}>
-        uid={getUserId() ?? 'none'} · name={getFirstName() ?? 'none'} · user={getUsername() ?? 'none'} · photo={getPhotoUrl() ? 'proxy' : 'no'} · sdk={getRawInitData() ? 'yes' : 'no'}
+        uid={getUserId() ?? 'none'} · sdk={getRawInitData() ? 'yes' : 'no'} · platform={tg.platform ?? 'none'}
       </p>
     </div>
 
