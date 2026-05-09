@@ -27,16 +27,18 @@ import os
 import random
 import sqlite3
 import time
+import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
-from telegram import Update
+from telegram import InlineQueryResultArticle, InputTextMessageContent, Update
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
     ChatMemberHandler,
     CommandHandler,
     ContextTypes,
+    InlineQueryHandler,
     MessageHandler,
     MessageReactionHandler,
     filters,
@@ -91,6 +93,16 @@ CHARACTER_ALIASES: dict[str, str] = {
     "yoshi": "yoshi",
     "link": "link",
     "zelda": "link",
+    "wario": "wario",
+    "toad": "toad",
+    "kirby": "kirby",
+    "samus": "samus",
+    "fox": "fox",
+    "ganondorf": "ganondorf",
+    "ganon": "ganondorf",
+    "falcon": "captain_falcon",
+    "captainfalcon": "captain_falcon",
+    "captain": "captain_falcon",
 }
 
 # Battle win-declaration templates (no {name} here — we inject manually)
@@ -607,6 +619,68 @@ async def cmd_roaststreak(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Inline mode
+# ──────────────────────────────────────────────────────────────────────────────
+
+async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Inline query handler — users type @nintondobot [character] in any chat.
+    Returns 5 roast options; the sender's name replaces {name}.
+    """
+    try:
+        query = update.inline_query
+        if query is None:
+            return
+
+        user = query.from_user
+        query_text = (query.query or '').strip().lower()
+
+        # Parse optional character from the query text
+        character_tag: str | None = None
+        for alias, tag in CHARACTER_ALIASES.items():
+            if alias in query_text.split():
+                character_tag = tag
+                break
+
+        # Use a negative user-id namespace so recently_used doesn't clash with real chats
+        pseudo_chat_id = -(user.id)
+        name = html.escape(user.first_name)
+
+        results: list[InlineQueryResultArticle] = []
+        seen_ids: set[int] = set()
+
+        for i in range(5):
+            category = 'universal' if i % 2 == 0 else 'targeted'
+            roast_id, roast_text = pick_roast(pseudo_chat_id, category, character_tag)
+            if roast_id in seen_ids:
+                continue
+            seen_ids.add(roast_id)
+
+            text = inject_name(roast_text, user.id, user.first_name)
+            full_text = f"{text}\n\n<i>via @nintondobot · $NINTONDO on TON</i>"
+
+            # Plain-text preview for the result tile
+            preview = roast_text.replace('{name}', user.first_name)
+            title = (preview[:72] + '…') if len(preview) > 72 else preview
+
+            results.append(
+                InlineQueryResultArticle(
+                    id=str(uuid.uuid4()),
+                    title=title,
+                    input_message_content=InputTextMessageContent(
+                        message_text=full_text,
+                        parse_mode=ParseMode.HTML,
+                    ),
+                    description='🔥 Tap to drop this roast in chat',
+                )
+            )
+
+        await query.answer(results, cache_time=30, is_personal=True)
+    except Exception:
+        logger.exception("Error in handle_inline_query")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Admin commands
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -880,8 +954,12 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "  /leaderboard — hall of shame: most roasted members\n"
         "  /roaststreak — see the chat's daily roast streak\n"
         "  /help — this message\n\n"
-        "<b>Characters:</b> mario · pikachu · dk · peach · luigi · bowser · yoshi · link\n"
-        "Add to /roast for character-specific flavour.\n\n"
+        "<b>Inline mode:</b>\n"
+        "  Type <code>@nintondobot</code> in any chat to drop a roast anywhere.\n"
+        "  Add a character name to filter: <code>@nintondobot mario</code>\n\n"
+        "<b>Characters:</b>\n"
+        "  mario · pikachu · dk · peach · luigi · bowser · yoshi · link\n"
+        "  wario · toad · kirby · samus · fox · ganondorf · falcon\n\n"
         "<b>Passive:</b>\n"
         "  React to any bot message with 🔥 for a bonus roast.\n"
         "  New members get automatically welcomed. Loudly.\n\n"
@@ -942,6 +1020,7 @@ def main() -> None:
     app.add_handler(CommandHandler("setcooldown", cmd_setcooldown))
     app.add_handler(CommandHandler("dailyroast", cmd_dailyroast))
 
+    app.add_handler(InlineQueryHandler(handle_inline_query))
     app.add_error_handler(error_handler)
 
     # Restore daily roast jobs for any chats that had it enabled
