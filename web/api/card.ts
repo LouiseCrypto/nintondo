@@ -19,12 +19,13 @@
 
 import fs from 'fs';
 import path from 'path';
-import { renderRoastCard } from './_shared/render';
+import { fileURLToPath } from 'url';
+import { renderRoastCard } from './_shared/render.js';
 
 type RoastEntry = { id: string; text: string; category: string; character_tag: string; weight: number };
 
-// Load roasts via fs — __dirname is always the compiled function's directory
-const _roastsPath = path.join(__dirname, '_shared', 'roasts.json');
+// Load roasts via fs — import.meta.url gives reliable path in ESM Lambda
+const _roastsPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '_shared', 'roasts.json');
 const _roastsData = JSON.parse(fs.readFileSync(_roastsPath, 'utf-8')) as { roasts: RoastEntry[] };
 
 // Build a fast lookup map from all seeded roasts

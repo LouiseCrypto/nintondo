@@ -2,7 +2,7 @@
  * Deterministic degen stats generator.
  * Same userId → same stats within an ISO week. Rotates every Monday.
  */
-import { hashStringToSeed, isoWeekNumber, mulberry32, pickFrom, pickWeighted } from './seeded-random';
+import { hashStringToSeed, isoWeekNumber, mulberry32, pickFrom, pickWeighted } from './seeded-random.js';
 
 export interface DegenStats {
   paperhandIndex: number;    // 0–100, biased 70–99

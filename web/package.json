@@ -1,8 +1,9 @@
 {
   "name": "nintondo-web",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "pnpm --filter miniapp build",
+    "build": "pnpm --filter miniapp build && node_modules/.bin/tsc -p tsconfig.shared.json",
     "dev": "pnpm --filter miniapp dev",
     "typecheck": "pnpm --filter miniapp typecheck && tsc --noEmit -p tsconfig.api.json"
   },

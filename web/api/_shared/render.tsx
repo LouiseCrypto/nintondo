@@ -15,16 +15,17 @@
 import { ImageResponse } from '@vercel/og';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import React from 'react';
-import { resolveCharacter } from './characters';
-import { hashStringToSeed, isoWeekNumber, mulberry32 } from './seeded-random';
-import { generateStats } from './stats';
-import { pickScene } from './scenes';
-import { pickType } from './types';
+import { resolveCharacter } from './characters.js';
+import { hashStringToSeed, isoWeekNumber, mulberry32 } from './seeded-random.js';
+import { generateStats } from './stats.js';
+import { pickScene } from './scenes.js';
+import { pickType } from './types.js';
 
-// ── Asset loading — __dirname is this file's directory in the ncc bundle ────
+// ── Asset loading — import.meta.url = this file's location in ESM Lambda ────
 
-const SHARED = __dirname;
+const SHARED = path.dirname(fileURLToPath(import.meta.url));
 
 function tryRead(filePath: string): Buffer | null {
   try { return fs.readFileSync(filePath); } catch { return null; }

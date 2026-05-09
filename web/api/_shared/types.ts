@@ -1,4 +1,4 @@
-import { hashStringToSeed, isoWeekNumber, mulberry32, pickFrom } from './seeded-random';
+import { hashStringToSeed, isoWeekNumber, mulberry32, pickFrom } from './seeded-random.js';
 
 /** 35 savage trading-card type badges. Deterministic per (userId + ISO week). */
 export const TYPE_BADGES = [
