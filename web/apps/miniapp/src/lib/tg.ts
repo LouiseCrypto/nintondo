@@ -1,83 +1,86 @@
-// Thin wrapper around the Telegram WebApp SDK.
-// Centralising all SDK access here means the rest of the app can be
-// tested without mocking the global window.Telegram object.
+// Direct access to window.Telegram.WebApp — @twa-dev/sdk v8 breaks its own proxy.
+// The telegram-web-app.js script in index.html loads synchronously before any module JS,
+// so window.Telegram.WebApp is always available by the time this module runs.
 
-import WebApp from '@twa-dev/sdk';
+function wa(): any {
+  return (window as any).Telegram?.WebApp ?? {};
+}
 
-export const tg = WebApp;
+// Proxy so callers can do tg.platform, tg.shareToStory(), etc. and always
+// get the live value from the real WebApp object.
+export const tg: any = new Proxy({} as Record<string, unknown>, {
+  get(_t, prop: string) {
+    const app = wa();
+    const val = app[prop];
+    return typeof val === 'function' ? val.bind(app) : val;
+  },
+});
 
 export function init(): void {
-  WebApp.ready();
-  WebApp.expand();
+  try { wa().ready?.(); } catch { /* non-Telegram context */ }
+  try { wa().expand?.(); } catch { /* non-Telegram context */ }
 }
 
 // URL param fallback — bot embeds uid/fn/un in the WebApp URL query string
-// so user data is available even if initDataUnsafe fails to populate.
 function urlParam(key: string): string | undefined {
   return new URLSearchParams(window.location.search).get(key) ?? undefined;
 }
 
 export function getUserId(): number | undefined {
-  const id = WebApp.initDataUnsafe?.user?.id;
+  const id = wa().initDataUnsafe?.user?.id;
   if (id) return id;
   const p = urlParam('uid');
   return p ? Number(p) : undefined;
 }
 
 export function getFirstName(): string | undefined {
-  return WebApp.initDataUnsafe?.user?.first_name ?? urlParam('fn');
+  return wa().initDataUnsafe?.user?.first_name ?? urlParam('fn');
 }
 
 export function getUsername(): string | undefined {
-  return WebApp.initDataUnsafe?.user?.username ?? urlParam('un');
+  return wa().initDataUnsafe?.user?.username ?? urlParam('un');
 }
 
 export function getPhotoUrl(): string | undefined {
-  const sdkPhoto = WebApp.initDataUnsafe?.user?.photo_url;
+  const sdkPhoto = wa().initDataUnsafe?.user?.photo_url;
   if (sdkPhoto) return sdkPhoto;
-  // Fall back to the server-side avatar proxy using the uid we have
   const uid = getUserId();
   if (uid) return `${window.location.origin}/api/avatar?uid=${uid}`;
   return undefined;
 }
 
 export function getRawInitData(): string {
-  return WebApp.initData ?? '';
+  return wa().initData ?? '';
 }
 
-// Theme-aware background colour for the card overlay
-export function getBgColor(): string {
-  return WebApp.backgroundColor ?? '#0f0a1e';
-}
-
-// Haptic helpers — swallow errors on clients that don't support them
 export function hapticImpact(style: 'light' | 'medium' | 'heavy' = 'medium'): void {
-  try {
-    WebApp.HapticFeedback.impactOccurred(style);
-  } catch { /* older clients */ }
+  try { wa().HapticFeedback?.impactOccurred(style); } catch { }
 }
 
 export function hapticNotification(type: 'success' | 'warning' | 'error'): void {
-  try {
-    WebApp.HapticFeedback.notificationOccurred(type);
-  } catch { /* older clients */ }
+  try { wa().HapticFeedback?.notificationOccurred(type); } catch { }
 }
 
-// MainButton helpers
 export function showMainButton(text: string, onClick: () => void): void {
-  WebApp.MainButton.setText(text);
-  WebApp.MainButton.onClick(onClick);
-  WebApp.MainButton.show();
+  try {
+    const btn = wa().MainButton;
+    btn.setText(text);
+    btn.onClick(onClick);
+    btn.show();
+  } catch { }
 }
 
 export function setMainButtonLoading(loading: boolean): void {
-  if (loading) {
-    WebApp.MainButton.showProgress(false);
-  } else {
-    WebApp.MainButton.hideProgress();
-  }
+  try {
+    const btn = wa().MainButton;
+    if (loading) btn.showProgress(false); else btn.hideProgress();
+  } catch { }
 }
 
 export function hideMainButton(): void {
-  WebApp.MainButton.hide();
+  try { wa().MainButton?.hide(); } catch { }
+}
+
+export function getBgColor(): string {
+  return wa().backgroundColor ?? '#0f0a1e';
 }
