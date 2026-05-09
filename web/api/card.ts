@@ -50,6 +50,16 @@ export default async function handler(request: Request): Promise<Response> {
     const userId = Number(url.searchParams.get('u') ?? '0');
     const roastId = url.searchParams.get('r') ?? '';
     const name   = url.searchParams.get('n') ?? 'anon';
+
+    // TEMP: ?debug=1 bypasses Satori — tells us if hang is init vs. render
+    if (url.searchParams.get('debug') === '1') {
+      return new Response(JSON.stringify({
+        ok: true,
+        roastsLoaded: _roastsData.roasts.length,
+        roastFound: ROAST_MAP.has(roastId),
+        dirname: path.dirname(fileURLToPath(import.meta.url)),
+      }, null, 2), { headers: { 'Content-Type': 'application/json' } });
+    }
     const avatarUrl = url.searchParams.get('a') ?? undefined;
 
     const roast = ROAST_MAP.get(roastId) ?? FALLBACK_ROAST;
