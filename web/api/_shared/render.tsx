@@ -1,5 +1,5 @@
 /**
- * Production Direction C card renderer — 1080×1920 parody trading card.
+ * Production Direction C card renderer — 540×960 parody trading card.
  * Uses @vercel/og (Satori) with Node.js runtime so we can load fonts
  * and character PNGs from disk via fs.readFileSync.
  *
@@ -10,6 +10,9 @@
  *   - Custom font via ImageResponse `fonts` option ✓
  *   - Images as base64 data URIs ✓
  *   - transform: rotate() supported in Satori 0.10+ ✓
+ *
+ * Dimensions: 540×960 (half of 1080×1920) for faster Satori rendering.
+ * Character PNGs capped at 600 KB — larger files are skipped (no cameo).
  */
 
 import { ImageResponse } from '@vercel/og';
@@ -27,14 +30,19 @@ import { pickType } from './types.js';
 
 const SHARED = path.dirname(fileURLToPath(import.meta.url));
 
-function tryRead(filePath: string): Buffer | null {
-  try { return fs.readFileSync(filePath); } catch { return null; }
+const CHAR_MAX_BYTES = 600 * 1024; // 600 KB — larger PNGs skipped for speed
+
+function tryRead(filePath: string, maxBytes?: number): Buffer | null {
+  try {
+    const buf = fs.readFileSync(filePath);
+    if (maxBytes !== undefined && buf.byteLength > maxBytes) return null;
+    return buf;
+  } catch { return null; }
 }
 
 // Load at module level — Node caches these after first cold start
-const fontBuffer   = tryRead(path.join(SHARED, 'fonts',  'BowlbyOne-Regular.ttf'));
-const logoBuffer   = tryRead(path.join(SHARED, 'assets', 'logo-mark.png'));
-// Default avatar is always present (committed to repo)
+const fontBuffer  = tryRead(path.join(SHARED, 'fonts',  'BowlbyOne-Regular.ttf'));
+const logoBuffer  = tryRead(path.join(SHARED, 'assets', 'logo-mark.png'));
 const defaultAvatar = (() => {
   const buf = tryRead(path.join(SHARED, 'assets', 'default-avatar.svg'));
   if (!buf) return null;
@@ -63,9 +71,9 @@ const PURPLE = '#a855f7';
 
 function StatRow({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-      <span style={{ color: '#888', fontSize: 21, fontFamily: 'monospace' }}>{label}</span>
-      <span style={{ color: accent ? '#f87171' : '#e2e8f0', fontSize: 24, fontFamily: 'BowlbyOne, sans-serif', maxWidth: 280, overflow: 'hidden' }}>{value}</span>
+    <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+      <span style={{ color: '#888', fontSize: 11, fontFamily: 'monospace' }}>{label}</span>
+      <span style={{ color: accent ? '#f87171' : '#e2e8f0', fontSize: 12, fontFamily: 'BowlbyOne, sans-serif', maxWidth: 140, overflow: 'hidden' }}>{value}</span>
     </div>
   );
 }
@@ -74,9 +82,9 @@ function StatRow({ label, value, accent = false }: { label: string; value: strin
 
 export interface RoastCardProps {
   userId:      number;
-  username:    string;              // display name (already resolved)
+  username:    string;
   roast:       { id: string; text: string; character_tag: string };
-  avatarBytes: Uint8Array | null;  // pre-fetched avatar, or null → default
+  avatarBytes: Uint8Array | null;
 }
 
 export async function renderRoastCard(props: RoastCardProps): Promise<ImageResponse> {
@@ -87,9 +95,9 @@ export async function renderRoastCard(props: RoastCardProps): Promise<ImageRespo
   const seed = hashStringToSeed(`${userId}:render:${week}`);
   const rng  = mulberry32(seed);
 
-  // ── Resolve character cameo ──
+  // ── Resolve character cameo (skip if PNG > 600 KB) ──
   const character  = resolveCharacter(roast.character_tag, rng);
-  const charBuffer = tryRead(character.assetPath);
+  const charBuffer = tryRead(character.assetPath, CHAR_MAX_BYTES);
   const charUri    = pngUri(charBuffer);
 
   // ── Avatar ──
@@ -108,69 +116,69 @@ export async function renderRoastCard(props: RoastCardProps): Promise<ImageRespo
     ? [{ name: 'BowlbyOne', data: fontBuffer.buffer.slice(fontBuffer.byteOffset, fontBuffer.byteOffset + fontBuffer.byteLength) as ArrayBuffer, style: 'normal', weight: 400 }]
     : [];
 
-  // ── JSX card (1080 × 1920) ──────────────────────────────────────────────
+  // ── JSX card (540 × 960) — half of 1080×1920 for faster rendering ─────────
 
   return new ImageResponse(
     (
       <div style={{
-        width: 1080, height: 1920,
+        width: 540, height: 960,
         display: 'flex', flexDirection: 'column',
         background: `linear-gradient(180deg, #2d1a4e 0%, #1a0f2e 100%)`,
-        border: `6px solid #1a0a2e`,
+        border: `3px solid #1a0a2e`,
         fontFamily: 'BowlbyOne, sans-serif',
         overflow: 'hidden',
       }}>
 
-        {/* ── HEADER STRIP (160px) ── red | blue | red */}
-        <div style={{ display: 'flex', height: 160, width: '100%' }}>
+        {/* ── HEADER STRIP (80px) ── red | blue | red */}
+        <div style={{ display: 'flex', height: 80, width: '100%' }}>
 
           {/* Left red: NINTONDO wordmark */}
-          <div style={{ display: 'flex', width: 280, background: RED, alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}>
+          <div style={{ display: 'flex', width: 140, background: RED, alignItems: 'center', justifyContent: 'center', padding: '0 8px' }}>
             {LOGO_URI
-              ? <img src={LOGO_URI} style={{ height: 82, objectFit: 'contain' }} />
-              : <span style={{ color: '#fff', fontSize: 42, letterSpacing: '-1px' }}>NINTONDO</span>
+              ? <img src={LOGO_URI} style={{ height: 41, objectFit: 'contain' }} />
+              : <span style={{ color: '#fff', fontSize: 21, letterSpacing: '-1px' }}>NINTONDO</span>
             }
           </div>
 
           {/* Middle blue: decorative stars */}
           <div style={{ display: 'flex', flex: 1, background: BLUE, alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ color: 'rgba(255,255,255,0.22)', fontSize: 30, letterSpacing: 12 }}>★  ★  ★</span>
+            <span style={{ color: 'rgba(255,255,255,0.22)', fontSize: 15, letterSpacing: 6 }}>★  ★  ★</span>
           </div>
 
           {/* Right red: TYPE badge */}
-          <div style={{ display: 'flex', width: 360, background: RED, alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 4 }}>
-            <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 18, letterSpacing: 3 }}>TYPE</span>
-            <span style={{ color: YELLOW, fontSize: typeTag.length > 16 ? 20 : 25, letterSpacing: 1, textAlign: 'center' }}>{typeTag}</span>
+          <div style={{ display: 'flex', width: 180, background: RED, alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 2 }}>
+            <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 9, letterSpacing: 2 }}>TYPE</span>
+            <span style={{ color: YELLOW, fontSize: typeTag.length > 16 ? 10 : 13, letterSpacing: 1, textAlign: 'center' }}>{typeTag}</span>
           </div>
 
         </div>
 
-        {/* ── USERNAME ROW (110px) ── */}
-        <div style={{ display: 'flex', height: 110, background: DARK, alignItems: 'center', justifyContent: 'space-between', padding: '0 48px', borderBottom: `3px solid ${RED}` }}>
-          <span style={{ color: '#fff', fontSize: 50, maxWidth: 560, overflow: 'hidden' }}>@{username}</span>
+        {/* ── USERNAME ROW (55px) ── */}
+        <div style={{ display: 'flex', height: 55, background: DARK, alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', borderBottom: `2px solid ${RED}` }}>
+          <span style={{ color: '#fff', fontSize: 25, maxWidth: 280, overflow: 'hidden' }}>@{username}</span>
 
-          {/* HP bar — always 2/10 because same */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: '#888', fontSize: 24, marginRight: 4 }}>HP</span>
+          {/* HP bar — always 2/10 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ color: '#888', fontSize: 12, marginRight: 2 }}>HP</span>
             {([0,1,2,3,4,5,6,7,8,9] as const).map(i => (
-              <div key={i} style={{ width: 16, height: 16, background: i < 2 ? '#ef4444' : '#1f1f3a', border: '1px solid #333' }} />
+              <div key={i} style={{ width: 8, height: 8, background: i < 2 ? '#ef4444' : '#1f1f3a', border: '1px solid #333' }} />
             ))}
-            <span style={{ color: '#ef4444', fontSize: 24, marginLeft: 6 }}>2/10</span>
+            <span style={{ color: '#ef4444', fontSize: 12, marginLeft: 3 }}>2/10</span>
           </div>
         </div>
 
-        {/* ── ILLUSTRATION WINDOW (920px) ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', height: 920, background: 'linear-gradient(180deg, #3d1a6e 0%, #2d0a4e 55%, #1a0a2e 100%)', padding: '40px 48px 28px' }}>
+        {/* ── ILLUSTRATION WINDOW (460px) ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', height: 460, background: 'linear-gradient(180deg, #3d1a6e 0%, #2d0a4e 55%, #1a0a2e 100%)', padding: '20px 24px 14px' }}>
 
           {/* Avatar + Character row */}
           <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'space-between' }}>
 
             {/* User avatar: circular, yellow ring */}
-            <div style={{ display: 'flex', width: 320, height: 320, borderRadius: '50%', border: `6px solid ${YELLOW}`, overflow: 'hidden', flexShrink: 0 }}>
+            <div style={{ display: 'flex', width: 160, height: 160, borderRadius: '50%', border: `3px solid ${YELLOW}`, overflow: 'hidden', flexShrink: 0 }}>
               {avatarUri
-                ? <img src={avatarUri} width={320} height={320} style={{ objectFit: 'cover' }} />
-                : <div style={{ display: 'flex', width: 320, height: 320, background: '#1e1b4b', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ color: '#6b7280', fontSize: 120 }}>?</span>
+                ? <img src={avatarUri} width={160} height={160} style={{ objectFit: 'cover' }} />
+                : <div style={{ display: 'flex', width: 160, height: 160, background: '#1e1b4b', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ color: '#6b7280', fontSize: 60 }}>?</span>
                   </div>
               }
             </div>
@@ -179,16 +187,16 @@ export async function renderRoastCard(props: RoastCardProps): Promise<ImageRespo
             {charUri && (
               <img
                 src={charUri}
-                style={{ height: 420, width: 400, objectFit: 'contain', transform: 'rotate(7deg)', flexShrink: 0 }}
+                style={{ height: 210, width: 200, objectFit: 'contain', transform: 'rotate(7deg)', flexShrink: 0 }}
               />
             )}
 
           </div>
 
           {/* Scene caption pill */}
-          <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 4 }}>
-            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.58)', borderRadius: 40, padding: '10px 28px', border: `1px solid rgba(255,204,0,0.25)` }}>
-              <span style={{ color: YELLOW, fontSize: 22, letterSpacing: 4, fontFamily: 'monospace' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 2 }}>
+            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.58)', borderRadius: 20, padding: '5px 14px', border: `1px solid rgba(255,204,0,0.25)` }}>
+              <span style={{ color: YELLOW, fontSize: 11, letterSpacing: 2, fontFamily: 'monospace' }}>
                 SCENE: {scene}
               </span>
             </div>
@@ -196,20 +204,20 @@ export async function renderRoastCard(props: RoastCardProps): Promise<ImageRespo
 
         </div>
 
-        {/* ── ROAST PANEL (340px) ── cream/aged-paper */}
-        <div style={{ display: 'flex', flexDirection: 'column', height: 340, background: CREAM, padding: '22px 48px' }}>
+        {/* ── ROAST PANEL (170px) ── cream/aged-paper */}
+        <div style={{ display: 'flex', flexDirection: 'column', height: 170, background: CREAM, padding: '11px 24px' }}>
 
           {/* ★ ROAST ATTACK header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-            <span style={{ color: RED, fontSize: 38 }}>★</span>
-            <span style={{ color: RED, fontSize: 34, letterSpacing: 2 }}>ROAST ATTACK</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+            <span style={{ color: RED, fontSize: 19 }}>★</span>
+            <span style={{ color: RED, fontSize: 17, letterSpacing: 1 }}>ROAST ATTACK</span>
           </div>
 
           {/* Roast text — scale font for longer strings */}
           <div style={{ display: 'flex', flex: 1, alignItems: 'center' }}>
             <span style={{
               color: '#2d1a4e',
-              fontSize: roastText.length > 140 ? 30 : roastText.length > 100 ? 34 : 38,
+              fontSize: roastText.length > 140 ? 15 : roastText.length > 100 ? 17 : 19,
               fontStyle: 'italic',
               fontFamily: 'serif',
               lineHeight: 1.4,
@@ -221,18 +229,18 @@ export async function renderRoastCard(props: RoastCardProps): Promise<ImageRespo
 
         </div>
 
-        {/* ── STATS PANEL (260px) ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', height: 260, background: DARK, padding: '18px 48px 14px', borderTop: `3px solid #4c1d95` }}>
+        {/* ── STATS PANEL (130px) ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', height: 130, background: DARK, padding: '9px 24px 7px', borderTop: `2px solid #4c1d95` }}>
 
           {/* — DEGEN PROFILE — */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-            <span style={{ color: PURPLE, fontSize: 24, fontFamily: 'monospace', letterSpacing: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 7 }}>
+            <span style={{ color: PURPLE, fontSize: 12, fontFamily: 'monospace', letterSpacing: 2 }}>
               ═══ DEGEN PROFILE ═══
             </span>
           </div>
 
           {/* Two columns of 3 stats each */}
-          <div style={{ display: 'flex', flex: 1, gap: 40 }}>
+          <div style={{ display: 'flex', flex: 1, gap: 20 }}>
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
               <StatRow label="PAPERHAND IDX" value={`${stats.paperhandIndex}%`}   accent={stats.paperhandIndex >= 85} />
               <StatRow label="LIQ RISK"      value={stats.liquidationRisk}         accent />
@@ -247,18 +255,18 @@ export async function renderRoastCard(props: RoastCardProps): Promise<ImageRespo
 
         </div>
 
-        {/* ── FOOTER STRIP (130px) ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', height: 130, background: `linear-gradient(90deg, ${RED} 0%, ${BLUE} 50%, ${RED} 100%)`, alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <span style={{ color: '#fff', fontSize: 30, letterSpacing: 1 }}>
+        {/* ── FOOTER STRIP (65px) ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', height: 65, background: `linear-gradient(90deg, ${RED} 0%, ${BLUE} 50%, ${RED} 100%)`, alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+          <span style={{ color: '#fff', fontSize: 15, letterSpacing: 1 }}>
             CARD #{cardNum} · $NINTONDO on TON
           </span>
-          <span style={{ color: 'rgba(255,255,255,0.62)', fontSize: 18 }}>
+          <span style={{ color: 'rgba(255,255,255,0.62)', fontSize: 9 }}>
             unofficial parody · not affiliated with any video game company
           </span>
         </div>
 
       </div>
     ),
-    { width: 1080, height: 1920, fonts },
+    { width: 540, height: 960, fonts },
   );
 }
