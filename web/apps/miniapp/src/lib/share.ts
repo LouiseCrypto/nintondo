@@ -1,66 +1,47 @@
-// Sharing helpers — robust fallback chain for all Telegram client versions.
-
 import { tg } from './tg.js';
 
 function storyCaption(roastText: string): string {
   return `${roastText}\n\nvia @nintondobot · $NINTONDO on TON`;
 }
 
-// ── Story share ────────────────────────────────────────────────────────────
+function sdkAvailable(): boolean {
+  return typeof tg.openTelegramLink === 'function';
+}
 
 export function shareToStory(cardUrl: string, roastText: string): void {
-  // 1. Telegram native story share (Telegram 7.8+, initialized SDK)
   try {
     if (typeof tg.shareToStory === 'function') {
       tg.shareToStory(cardUrl, { text: storyCaption(roastText) });
       return;
     }
-  } catch { /* fall through */ }
-
-  // 2. Fall back to chat share
-  shareToChat(cardUrl, roastText);
+  } catch { }
+  void shareToChat(cardUrl, roastText);
 }
-
-// ── Chat share ─────────────────────────────────────────────────────────────
 
 export async function shareToChat(cardUrl: string, roastText: string): Promise<void> {
   const text = storyCaption(roastText);
 
-  // 1. Telegram switchInlineQuery — lets user pick any chat (requires initialized SDK)
-  try {
-    if (typeof tg.switchInlineQuery === 'function') {
-      tg.switchInlineQuery(roastText.slice(0, 50), ['users', 'groups', 'channels']);
-      return;
-    }
-  } catch { /* fall through */ }
+  // SDK available (proper Mini App context)
+  if (sdkAvailable()) {
+    // Prefer switchInlineQuery — lets user pick any chat
+    try {
+      if (typeof tg.switchInlineQuery === 'function') {
+        tg.switchInlineQuery(roastText.slice(0, 50), ['users', 'groups', 'channels']);
+        return;
+      }
+    } catch { }
 
-  // 2. tg://msg_url — try SDK first, then direct navigation
-  try {
-    const deepLink = `tg://msg_url?url=${encodeURIComponent(cardUrl)}&text=${encodeURIComponent(text)}`;
-    if (typeof tg.openTelegramLink === 'function') {
+    // Fall back to tg:// deep link share dialog
+    try {
+      const deepLink = `tg://msg_url?url=${encodeURIComponent(cardUrl)}&text=${encodeURIComponent(text)}`;
       tg.openTelegramLink(deepLink);
-    } else {
-      window.location.href = deepLink;
-    }
-    return;
-  } catch { /* fall through */ }
+      return;
+    } catch { }
+  }
 
-  // 3. https t.me/share fallback — opens share page in Telegram browser
-  try {
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(cardUrl)}&text=${encodeURIComponent(text)}`;
-    if (typeof tg.openTelegramLink === 'function') {
-      tg.openTelegramLink(shareUrl);
-    } else {
-      window.open(shareUrl, '_blank');
-    }
-    return;
-  } catch { /* fall through */ }
-
-  // 3. Copy card URL to clipboard as last resort
+  // No SDK — copy to clipboard with clear instruction
   try {
     await navigator.clipboard.writeText(cardUrl);
-    alert('Card link copied — paste it into any Telegram chat!');
-  } catch {
-    alert(`Card link:\n${cardUrl}`);
-  }
+  } catch { }
+  alert('Link copied! Paste it into any Telegram chat to share your card 👇\n\n' + cardUrl);
 }
