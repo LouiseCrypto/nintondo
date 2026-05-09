@@ -34,13 +34,11 @@ export async function shareToChat(cardUrl: string, roastText: string): Promise<v
     }
   } catch { /* fall through */ }
 
-  // 2. tg://msg_url deep link — opens Telegram's native share dialog without any browser
+  // 2. tg://msg_url deep link — Telegram WebView intercepts tg:// natively
   try {
-    if (typeof tg.openTelegramLink === 'function') {
-      const deepLink = `tg://msg_url?url=${encodeURIComponent(cardUrl)}&text=${encodeURIComponent(text)}`;
-      tg.openTelegramLink(deepLink);
-      return;
-    }
+    const deepLink = `tg://msg_url?url=${encodeURIComponent(cardUrl)}&text=${encodeURIComponent(text)}`;
+    window.location.href = deepLink;
+    return;
   } catch { /* fall through */ }
 
   // 3. Copy card URL to clipboard as last resort
