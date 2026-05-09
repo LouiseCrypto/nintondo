@@ -1,4 +1,5 @@
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { pickFrom } from './seeded-random.js';
 
 export const CHARACTER_TAGS = [
@@ -8,7 +9,7 @@ export const CHARACTER_TAGS = [
 
 export type CharacterTag = typeof CHARACTER_TAGS[number];
 
-const CHARACTERS_DIR = path.join(process.cwd(), 'api', '_shared', 'assets', 'characters');
+const CHARACTERS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'assets', 'characters');
 
 /**
  * Resolves which character to display on the card.

@@ -15,6 +15,7 @@
 import { ImageResponse } from '@vercel/og';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import React from 'react';
 import { resolveCharacter } from './characters.js';
 import { hashStringToSeed, isoWeekNumber, mulberry32 } from './seeded-random.js';
@@ -22,9 +23,10 @@ import { generateStats } from './stats.js';
 import { pickScene } from './scenes.js';
 import { pickType } from './types.js';
 
-// ── Asset loading (process.cwd() = web/ in both dev and Vercel prod) ────────
+// ── Asset loading — use import.meta.url so the path is always relative
+//    to this file, regardless of what process.cwd() returns in Lambda. ────────
 
-const SHARED = path.join(process.cwd(), 'api', '_shared');
+const SHARED = path.dirname(fileURLToPath(import.meta.url));
 
 function tryRead(filePath: string): Buffer | null {
   try { return fs.readFileSync(filePath); } catch { return null; }
