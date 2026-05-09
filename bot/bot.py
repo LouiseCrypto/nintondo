@@ -31,7 +31,7 @@ import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
-from telegram import InlineQueryResultArticle, InputTextMessageContent, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent, Update, WebAppInfo
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
@@ -1047,11 +1047,25 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "<i>18+. All roasts are parody. Thick skin recommended. Not financial advice. "
         "Not any kind of advice actually.</i>"
     )
-    await update.effective_message.reply_text(text, parse_mode=ParseMode.HTML)
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("🔥 Get Your Roast Card", web_app=WebAppInfo(url=CARD_API_URL or "https://nintondo-59r8.vercel.app")),
+    ]])
+    await update.effective_message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await cmd_start(update, context)
+
+
+async def cmd_app(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/app — open the roast card miniapp."""
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("🔥 Get Your Roast Card", web_app=WebAppInfo(url=CARD_API_URL or "https://nintondo-59r8.vercel.app")),
+    ]])
+    await update.effective_message.reply_text(
+        "Tap below to get your personalised degen card 👇",
+        reply_markup=keyboard,
+    )
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1093,6 +1107,7 @@ def main() -> None:
     app.add_handler(CommandHandler("roaststreak", cmd_roaststreak))
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("app", cmd_app))
 
     # Admin commands
     app.add_handler(CommandHandler("stats", cmd_stats))
