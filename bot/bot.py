@@ -317,7 +317,12 @@ async def send_roast_card(
     # Use @handle for the card display name, fall back to first name
     display_name = username or first_name
     avatar_url = await get_avatar_url(bot, user_id)
+
+    logger.info("Card build — user_id=%s first_name=%r username=%r display_name=%r avatar_url=%r",
+                user_id, first_name, username, display_name, avatar_url)
+
     card_url = build_card_url(user_id, roast_id, display_name, roast_text, char_tag, avatar_url)
+    logger.info("Card URL: %s", card_url)
 
     if card_url:
         try:
