@@ -1,7 +1,6 @@
 {
   "name": "nintondo-web",
   "private": true,
-  "type": "module",
   "scripts": {
     "build": "pnpm --filter miniapp build",
     "dev": "pnpm --filter miniapp dev",

@@ -1,4 +1,4 @@
-import { hashStringToSeed, mulberry32, pickFrom } from './seeded-random.js';
+import { hashStringToSeed, mulberry32, pickFrom } from './seeded-random';
 
 /** 20 scene captions — max 30 chars each. */
 export const SCENE_CAPTIONS = [

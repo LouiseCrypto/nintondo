@@ -15,18 +15,16 @@
 import { ImageResponse } from '@vercel/og';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import React from 'react';
-import { resolveCharacter } from './characters.js';
-import { hashStringToSeed, isoWeekNumber, mulberry32 } from './seeded-random.js';
-import { generateStats } from './stats.js';
-import { pickScene } from './scenes.js';
-import { pickType } from './types.js';
+import { resolveCharacter } from './characters';
+import { hashStringToSeed, isoWeekNumber, mulberry32 } from './seeded-random';
+import { generateStats } from './stats';
+import { pickScene } from './scenes';
+import { pickType } from './types';
 
-// ── Asset loading — use import.meta.url so the path is always relative
-//    to this file, regardless of what process.cwd() returns in Lambda. ────────
+// ── Asset loading — __dirname is this file's directory in the ncc bundle ────
 
-const SHARED = path.dirname(fileURLToPath(import.meta.url));
+const SHARED = __dirname;
 
 function tryRead(filePath: string): Buffer | null {
   try { return fs.readFileSync(filePath); } catch { return null; }

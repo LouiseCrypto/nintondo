@@ -1,6 +1,5 @@
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { pickFrom } from './seeded-random.js';
+import { pickFrom } from './seeded-random';
 
 export const CHARACTER_TAGS = [
   'mario', 'luigi', 'peach', 'pikachu', 'ash',
@@ -9,7 +8,7 @@ export const CHARACTER_TAGS = [
 
 export type CharacterTag = typeof CHARACTER_TAGS[number];
 
-const CHARACTERS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'assets', 'characters');
+const CHARACTERS_DIR = path.join(__dirname, 'assets', 'characters');
 
 /**
  * Resolves which character to display on the card.
