@@ -225,7 +225,7 @@ export default async function handler(request: Request): Promise<Response> {
 
   const host = request.headers.get('host') ?? 'localhost:3000';
   const proto = host.startsWith('localhost') ? 'http' : 'https';
-  const params = new URLSearchParams({ u: String(uid), r: roast.id, n: name });
+  const params = new URLSearchParams({ u: String(uid), r: roast.id, n: name, t: text, c: roast.character_tag });
   if (avatarUrl) params.set('a', avatarUrl);
 
   return json({ roast: { ...roast, text }, stats, cardUrl: `${proto}://${host}/api/card?${params}` });

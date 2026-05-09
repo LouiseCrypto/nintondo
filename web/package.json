@@ -1,10 +1,8 @@
 {
   "name": "nintondo-web",
   "private": true,
-  "type": "module",
-  "engines": { "node": "20.x" },
   "scripts": {
-    "build": "pnpm --filter miniapp build && node_modules/.bin/tsc -p tsconfig.shared.json",
+    "build": "pnpm --filter miniapp build",
     "dev": "pnpm --filter miniapp dev",
     "typecheck": "pnpm --filter miniapp typecheck && tsc --noEmit -p tsconfig.api.json"
   },
