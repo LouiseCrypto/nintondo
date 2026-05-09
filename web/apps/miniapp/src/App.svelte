@@ -159,12 +159,7 @@
         Your personalised degen profile awaits
       </p>
 
-      <button class="btn-diag" onclick={testApi}>🔧 test api</button>
-      {#if diagResult}
-        <pre class="diag-output">{diagResult}</pre>
-      {/if}
-
-      <p class="build-stamp" style:color={hintColor}>build: 2026-05-09b</p>
+      <p class="build-stamp" style:color={hintColor}>build: 2026-05-09c</p>
     </div>
 
   <!-- ── GENERATING ────────────────────────────────────────────────── -->
@@ -260,16 +255,6 @@
     background: rgba(239,68,68,0.15); border: 1px solid #ef4444;
     border-radius: 12px; padding: 12px 16px; font-size: 0.875rem;
     margin-bottom: 24px; max-width: 300px; color: #fca5a5;
-  }
-  .btn-diag {
-    margin-top: 24px; background: transparent; border: 1px dashed #334155;
-    color: #475569; font-size: 0.75rem; padding: 6px 12px;
-    border-radius: 8px; cursor: pointer; font-family: monospace;
-  }
-  .diag-output {
-    margin-top: 8px; background: #0f172a; border: 1px solid #1e293b;
-    border-radius: 8px; padding: 10px; font-size: 0.7rem; color: #94a3b8;
-    text-align: left; max-width: 320px; overflow-wrap: break-word; white-space: pre-wrap;
   }
   .build-stamp { margin-top: 16px; font-size: 0.65rem; font-family: monospace; }
 
