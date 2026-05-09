@@ -119,8 +119,14 @@ export default async function handler(request: Request): Promise<Response> {
   const logo   = logoData.status   === 'fulfilled' && logoData.value   ? logoData.value   : null;
   const avatar = avatarData.status === 'fulfilled' && avatarData.value ? avatarData.value : null;
 
-  const toDataUri = (buf: ArrayBuffer | null, mime: string) =>
-    buf ? `data:${mime};base64,${btoa(String.fromCharCode(...new Uint8Array(buf)))}` : null;
+  const toDataUri = (buf: ArrayBuffer | null, mime: string): string | null => {
+    if (!buf) return null;
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    // Loop avoids call-stack overflow from spreading large Uint8Arrays
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return `data:${mime};base64,${btoa(binary)}`;
+  };
 
   const charUri   = toDataUri(char,   'image/png');
   const logoUri   = toDataUri(logo,   'image/png');
@@ -211,7 +217,7 @@ export default async function handler(request: Request): Promise<Response> {
       {/* STATS PANEL */}
       <div style={{ display: 'flex', flexDirection: 'column', height: 130, background: DARK, padding: '9px 24px 7px', borderTop: `2px solid #4c1d95` }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 7 }}>
-          <span style={{ color: PURPLE, fontSize: 12, fontFamily: 'monospace', letterSpacing: 2 }}>═══ DEGEN PROFILE ═══</span>
+          <span style={{ color: PURPLE, fontSize: 12, fontFamily: 'monospace', letterSpacing: 2 }}>— DEGEN PROFILE —</span>
         </div>
         <div style={{ display: 'flex', flex: 1, gap: 20 }}>
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
