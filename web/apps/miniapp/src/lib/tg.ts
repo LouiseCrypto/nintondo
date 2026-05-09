@@ -33,7 +33,12 @@ export function getUsername(): string | undefined {
 }
 
 export function getPhotoUrl(): string | undefined {
-  return WebApp.initDataUnsafe?.user?.photo_url;
+  const sdkPhoto = WebApp.initDataUnsafe?.user?.photo_url;
+  if (sdkPhoto) return sdkPhoto;
+  // Fall back to the server-side avatar proxy using the uid we have
+  const uid = getUserId();
+  if (uid) return `${window.location.origin}/api/avatar?uid=${uid}`;
+  return undefined;
 }
 
 export function getRawInitData(): string {
