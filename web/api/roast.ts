@@ -219,13 +219,16 @@ export default async function handler(request: Request): Promise<Response> {
   const roast = pickRoast(uid, category);
   recordServed(uid, roast.id);
 
-  const name = firstName ?? username ?? 'anon';
-  const text = roast.text.replace(/\{name\}/g, name);
+  // roastName = what goes in the roast text (first name reads more natural)
+  // displayName = what shows on the card's @handle area (username preferred)
+  const roastName   = firstName ?? username ?? 'anon';
+  const displayName = username  ?? firstName ?? 'anon';
+  const text = roast.text.replace(/\{name\}/g, roastName);
   const stats = generateStats(uid);
 
   const host = request.headers.get('host') ?? 'localhost:3000';
   const proto = host.startsWith('localhost') ? 'http' : 'https';
-  const params = new URLSearchParams({ u: String(uid), r: roast.id, n: name, t: text, c: roast.character_tag });
+  const params = new URLSearchParams({ u: String(uid), r: roast.id, n: displayName, t: text, c: roast.character_tag });
   if (avatarUrl) params.set('a', avatarUrl);
 
   return json({ roast: { ...roast, text }, stats, cardUrl: `${proto}://${host}/api/card?${params}` });
