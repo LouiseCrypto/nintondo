@@ -1,4 +1,10 @@
 {
   "buildCommand": "pnpm build",
-  "outputDirectory": "apps/miniapp/dist"
+  "outputDirectory": "apps/miniapp/dist",
+  "functions": {
+    "api/card.ts": {
+      "maxDuration": 10,
+      "includeFiles": "api/_shared/**"
+    }
+  }
 }
