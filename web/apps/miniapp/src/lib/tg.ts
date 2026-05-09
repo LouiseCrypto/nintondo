@@ -11,21 +11,33 @@ export function init(): void {
   WebApp.expand();
 }
 
+// URL param fallback — bot embeds uid/fn/un in the WebApp URL query string
+// so user data is available even if initDataUnsafe fails to populate.
+function urlParam(key: string): string | undefined {
+  return new URLSearchParams(window.location.search).get(key) ?? undefined;
+}
+
 export function getUserId(): number | undefined {
-  return WebApp.initDataUnsafe?.user?.id;
+  const id = WebApp.initDataUnsafe?.user?.id;
+  if (id) return id;
+  const p = urlParam('uid');
+  return p ? Number(p) : undefined;
 }
 
 export function getFirstName(): string | undefined {
-  return WebApp.initDataUnsafe?.user?.first_name;
+  return WebApp.initDataUnsafe?.user?.first_name ?? urlParam('fn');
 }
 
 export function getUsername(): string | undefined {
-  return WebApp.initDataUnsafe?.user?.username;
+  return WebApp.initDataUnsafe?.user?.username ?? urlParam('un');
 }
 
 export function getPhotoUrl(): string | undefined {
-  // Telegram exposes photo_url in initDataUnsafe.user when available
   return WebApp.initDataUnsafe?.user?.photo_url;
+}
+
+export function getRawInitData(): string {
+  return WebApp.initData ?? '';
 }
 
 // Theme-aware background colour for the card overlay

@@ -1047,8 +1047,14 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "<i>18+. All roasts are parody. Thick skin recommended. Not financial advice. "
         "Not any kind of advice actually.</i>"
     )
+    user = update.effective_user
+    base = CARD_API_URL or "https://nintondo-59r8.vercel.app"
+    p: dict[str, str] = {"uid": str(user.id), "fn": user.first_name or ""}
+    if user.username:
+        p["un"] = user.username
+    webapp_url = f"{base}?{urllib.parse.urlencode(p)}"
     keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("🔥 Get Your Roast Card", web_app=WebAppInfo(url=CARD_API_URL or "https://nintondo-59r8.vercel.app")),
+        InlineKeyboardButton("🔥 Get Your Roast Card", web_app=WebAppInfo(url=webapp_url)),
     ]])
     await update.effective_message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
 
@@ -1059,8 +1065,14 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_app(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/app — open the roast card miniapp."""
+    user = update.effective_user
+    base = CARD_API_URL or "https://nintondo-59r8.vercel.app"
+    p: dict[str, str] = {"uid": str(user.id), "fn": user.first_name or ""}
+    if user.username:
+        p["un"] = user.username
+    webapp_url = f"{base}?{urllib.parse.urlencode(p)}"
     keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("🔥 Get Your Roast Card", web_app=WebAppInfo(url=CARD_API_URL or "https://nintondo-59r8.vercel.app")),
+        InlineKeyboardButton("🔥 Get Your Roast Card", web_app=WebAppInfo(url=webapp_url)),
     ]])
     await update.effective_message.reply_text(
         "Tap below to get your personalised degen card 👇",

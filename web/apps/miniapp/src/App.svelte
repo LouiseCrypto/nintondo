@@ -6,6 +6,7 @@
     getFirstName,
     getUsername,
     getPhotoUrl,
+    getRawInitData,
     hapticImpact,
     hapticNotification,
     tg,
@@ -161,7 +162,7 @@
 
       <p class="build-stamp" style:color={hintColor}>build: 2026-05-09c</p>
       <p class="build-stamp" style:color={hintColor}>
-        uid={getUserId() ?? 'none'} · name={getFirstName() ?? 'none'} · user={getUsername() ?? 'none'} · photo={getPhotoUrl() ? 'yes' : 'no'}
+        uid={getUserId() ?? 'none'} · name={getFirstName() ?? 'none'} · user={getUsername() ?? 'none'} · photo={getPhotoUrl() ? 'yes' : 'no'} · raw={getRawInitData() ? getRawInitData().slice(0,20) : 'empty'}
       </p>
     </div>
 
