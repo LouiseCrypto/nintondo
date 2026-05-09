@@ -34,10 +34,25 @@ export async function shareToChat(cardUrl: string, roastText: string): Promise<v
     }
   } catch { /* fall through */ }
 
-  // 2. tg://msg_url deep link — Telegram WebView intercepts tg:// natively
+  // 2. tg://msg_url — try SDK first, then direct navigation
   try {
     const deepLink = `tg://msg_url?url=${encodeURIComponent(cardUrl)}&text=${encodeURIComponent(text)}`;
-    window.location.href = deepLink;
+    if (typeof tg.openTelegramLink === 'function') {
+      tg.openTelegramLink(deepLink);
+    } else {
+      window.location.href = deepLink;
+    }
+    return;
+  } catch { /* fall through */ }
+
+  // 3. https t.me/share fallback — opens share page in Telegram browser
+  try {
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(cardUrl)}&text=${encodeURIComponent(text)}`;
+    if (typeof tg.openTelegramLink === 'function') {
+      tg.openTelegramLink(shareUrl);
+    } else {
+      window.open(shareUrl, '_blank');
+    }
     return;
   } catch { /* fall through */ }
 
