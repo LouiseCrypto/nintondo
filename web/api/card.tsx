@@ -151,11 +151,11 @@ export default async function handler(request: Request): Promise<Response> {
       {/* HEADER */}
       <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
 
-        {/* Top logo bar — full width red, logo centred and large */}
-        <div style={{ display: 'flex', height: 72, width: '100%', background: RED, alignItems: 'center', justifyContent: 'center', borderBottom: `3px solid ${YELLOW}` }}>
-          {logoUri
-            ? <img src={logoUri} style={{ height: 52, objectFit: 'contain' }} />
-            : <span style={{ color: '#fff', fontSize: 38, letterSpacing: 2 }}>NINTONDO</span>}
+        {/* Top logo bar — full width red, wordmark as styled text */}
+        <div style={{ display: 'flex', height: 80, width: '100%', background: RED, alignItems: 'center', justifyContent: 'center', borderBottom: `4px solid ${YELLOW}` }}>
+          <span style={{ color: '#fff', fontSize: 54, letterSpacing: -1, fontFamily: 'BowlbyOne, sans-serif', lineHeight: 1 }}>NIN</span>
+          <span style={{ color: BLUE,  fontSize: 54, letterSpacing: -1, fontFamily: 'BowlbyOne, sans-serif', lineHeight: 1 }}>TON</span>
+          <span style={{ color: '#fff', fontSize: 54, letterSpacing: -1, fontFamily: 'BowlbyOne, sans-serif', lineHeight: 1 }}>DO</span>
         </div>
 
         {/* Sub-bar: CERTIFIED DEGEN | TYPE */}
