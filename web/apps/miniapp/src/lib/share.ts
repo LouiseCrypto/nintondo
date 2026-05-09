@@ -2,41 +2,31 @@
 
 import { tg } from './tg.js';
 
-function storyText(roastText: string): string {
+function storyCaption(roastText: string): string {
   return `${roastText}\n\nvia @nintondobot · $NINTONDO on TON`;
 }
 
-function openUrl(url: string): void {
-  // Try Telegram's own link opener first, fall back to window.open
-  try {
-    if (typeof tg.openTelegramLink === 'function') {
-      tg.openTelegramLink(url);
-      return;
-    }
-  } catch { /* fall through */ }
-  try {
-    if (typeof tg.openLink === 'function') {
-      tg.openLink(url);
-      return;
-    }
-  } catch { /* fall through */ }
-  window.open(url, '_blank');
-}
+// ── Story share ────────────────────────────────────────────────────────────
 
 export function shareToStory(cardUrl: string, roastText: string): void {
+  // 1. Telegram native story share (Telegram 7.8+, initialized SDK)
   try {
     if (typeof tg.shareToStory === 'function') {
-      tg.shareToStory(cardUrl, { text: storyText(roastText) });
+      tg.shareToStory(cardUrl, { text: storyCaption(roastText) });
       return;
     }
-  } catch { /* fall through to chat share */ }
+  } catch { /* fall through */ }
+
+  // 2. Fall back to chat share
   shareToChat(cardUrl, roastText);
 }
 
-export function shareToChat(cardUrl: string, roastText: string): void {
-  const text = storyText(roastText);
+// ── Chat share ─────────────────────────────────────────────────────────────
 
-  // Try inline query switch (lets user pick any chat)
+export async function shareToChat(cardUrl: string, roastText: string): Promise<void> {
+  const text = storyCaption(roastText);
+
+  // 1. Telegram switchInlineQuery — lets user pick any chat (requires initialized SDK)
   try {
     if (typeof tg.switchInlineQuery === 'function') {
       tg.switchInlineQuery(roastText.slice(0, 50), ['users', 'groups', 'channels']);
@@ -44,8 +34,22 @@ export function shareToChat(cardUrl: string, roastText: string): void {
     }
   } catch { /* fall through */ }
 
-  // Universal Telegram share URL — works in Telegram's in-app browser
-  const shareUrl =
-    `https://t.me/share/url?url=${encodeURIComponent(cardUrl)}&text=${encodeURIComponent(text)}`;
-  openUrl(shareUrl);
+  // 2. Native Web Share API — opens OS share sheet on mobile, user picks any Telegram chat
+  if (typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title: 'My Nintondo Roast Card', text, url: cardUrl });
+      return;
+    } catch (e) {
+      // User cancelled — don't fall through to clipboard
+      if (e instanceof Error && e.name === 'AbortError') return;
+    }
+  }
+
+  // 3. Copy card URL to clipboard as last resort
+  try {
+    await navigator.clipboard.writeText(cardUrl);
+    alert('Card link copied to clipboard — paste it into any chat!');
+  } catch {
+    alert(`Card link:\n${cardUrl}`);
+  }
 }

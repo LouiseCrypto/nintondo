@@ -203,7 +203,7 @@
 
         <button
           class="btn btn-secondary"
-          onclick={() => { hapticImpact('light'); shareToChat(result!.cardUrl, result!.roast.text); }}
+          onclick={() => { hapticImpact('light'); void shareToChat(result!.cardUrl, result!.roast.text); }}
         >
           💬 Send to Chat
         </button>
