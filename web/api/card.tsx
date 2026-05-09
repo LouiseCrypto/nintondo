@@ -155,8 +155,9 @@ export default async function handler(request: Request): Promise<Response> {
             ? <img src={logoUri} style={{ height: 40, objectFit: 'contain' }} />
             : <span style={{ color: '#fff', fontSize: 18, letterSpacing: '-1px' }}>NINTONDO</span>}
         </div>
-        <div style={{ display: 'flex', flex: 1, background: BLUE, alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ color: 'rgba(255,255,255,0.22)', fontSize: 15, letterSpacing: 6 }}>★  ★  ★</span>
+        <div style={{ display: 'flex', flex: 1, background: BLUE, alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 1 }}>
+          <span style={{ color: YELLOW, fontSize: 13, letterSpacing: 3, lineHeight: 1 }}>CERTIFIED</span>
+          <span style={{ color: '#fff', fontSize: 17, letterSpacing: 2, lineHeight: 1 }}>DEGEN</span>
         </div>
         <div style={{ display: 'flex', width: 180, background: RED, alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 2 }}>
           <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 9, letterSpacing: 2 }}>TYPE</span>
