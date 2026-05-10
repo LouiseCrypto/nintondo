@@ -31,7 +31,7 @@ import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InlineQueryResultCachedPhoto, InputTextMessageContent, Update, WebAppInfo
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InlineQueryResultCachedPhoto, InlineQueryResultPhoto, InputTextMessageContent, Update, WebAppInfo
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
@@ -718,12 +718,19 @@ async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE
         user = query.from_user
         query_text = (query.query or '').strip()
 
-        # ── Card URL share (from Mini App "Send to Chat" button) ──────────────
-        if query_text.startswith('https://'):
-            card_url = query_text[:512]
-            logger.info(">>> INLINE CARD SHARE — user=%s url=%s", user.id, card_url)
+        # ── Card share (from Mini App "Send to Chat" button) ──────────────────
+        # Format: "card:userId:roastId:name:charTag"
+        if query_text.startswith('card:'):
+            parts = query_text.split(':', 4)
+            if len(parts) == 5:
+                _, uid, rid, name, char = parts
+            else:
+                uid, rid, name, char = '0', 'r000', 'anon', 'general'
+
+            card_url = f"{CARD_API_URL}/api/card?{urllib.parse.urlencode({'u': uid, 'r': rid, 'n': name, 'c': char})}"
+            logger.info(">>> INLINE CARD SHARE — user=%s card_url=%s", user.id, card_url)
+
             try:
-                # Pre-upload the card image to Telegram via temp DM to the user
                 logger.info(">>> Uploading card image to Telegram...")
                 temp_msg = await context.bot.send_photo(
                     chat_id=user.id,
@@ -765,6 +772,34 @@ async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE
                     logger.info(">>> Fallback article answer sent")
                 except Exception:
                     logger.exception(">>> Fallback also failed")
+            return
+
+        # Also handle raw URLs (backward compat / direct inline usage)
+        if query_text.startswith('https://'):
+            card_url = query_text[:512]
+            logger.info(">>> INLINE CARD SHARE (url) — user=%s url=%s", user.id, card_url)
+            try:
+                temp_msg = await context.bot.send_photo(
+                    chat_id=user.id,
+                    photo=card_url,
+                    disable_notification=True,
+                    read_timeout=30,
+                    write_timeout=30,
+                    connect_timeout=15,
+                )
+                file_id = temp_msg.photo[-1].file_id
+                try:
+                    await context.bot.delete_message(chat_id=user.id, message_id=temp_msg.message_id)
+                except Exception:
+                    pass
+                result = InlineQueryResultCachedPhoto(
+                    id=str(uuid.uuid4()),
+                    photo_file_id=file_id,
+                    caption='🎮 My Nintondo Roast Card\n\n$NINTONDO on TON | via @nintondobot',
+                )
+                await query.answer([result], cache_time=0, is_personal=True)
+            except Exception:
+                logger.exception(">>> CARD SHARE (url) FAILED")
             return
 
         # ── Standard inline roast results ─────────────────────────────────────
