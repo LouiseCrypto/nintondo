@@ -33,7 +33,7 @@ export async function shareToChat(cardUrl: string, roastText: string): Promise<v
         body: JSON.stringify({
           userId,
           cardUrl,
-          caption: `🎮 My Nintondo Roast Card\n\n${roastText}\n\n$NINTONDO on TON | via @nintondobot\n\n👆 Forward this message to share!`,
+          caption: `🎮 My Nintondo Roast Card\n\n${roastText}\n\n$NINTONDO on TON | via @nintondobot`,
         }),
         signal: AbortSignal.timeout(20_000),
       });

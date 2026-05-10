@@ -3,8 +3,8 @@
  * Body: { userId: number, cardUrl: string, caption?: string }
  *
  * Downloads the card image, sends it to the user's DM with the bot
- * via the Telegram Bot API. The photo stays in the DM so the user
- * can forward it to any chat.
+ * as a DOCUMENT (preserves full resolution, no Telegram compression).
+ * Then sends a separate text message with forwarding instructions.
  */
 
 export const config = { runtime: 'edge' };
@@ -31,7 +31,7 @@ export default async function handler(request: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: 'Missing userId or cardUrl' }), { status: 400 });
   }
 
-  const caption = body.caption ?? '🎮 Your Nintondo Roast Card\n\nForward this message to share it with friends!';
+  const caption = body.caption ?? '🎮 My Nintondo Roast Card\n\n$NINTONDO on TON | via @nintondobot';
 
   try {
     // 1. Download card image (same Vercel deployment — fast)
@@ -41,13 +41,13 @@ export default async function handler(request: Request): Promise<Response> {
     }
     const imgBlob = await imgRes.blob();
 
-    // 2. Send to user's DM with caption — KEEP the message so they can forward it
+    // 2. Send card as a DOCUMENT to preserve full resolution (no Telegram compression/cropping)
     const form = new FormData();
     form.append('chat_id', String(userId));
-    form.append('photo', imgBlob, 'card.png');
+    form.append('document', imgBlob, 'Nintondo-Roast-Card.png');
     form.append('caption', caption);
 
-    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, {
       method: 'POST',
       body: form,
     });
@@ -56,6 +56,16 @@ export default async function handler(request: Request): Promise<Response> {
     if (!tgData.ok) {
       return new Response(JSON.stringify({ error: tgData.description ?? 'Telegram send failed' }), { status: 502 });
     }
+
+    // 3. Send a separate instruction message (won't be included when forwarding the card)
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: userId,
+        text: '👆 Forward the card above to share it with any chat!',
+      }),
+    }).catch(() => {});
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { 'Content-Type': 'application/json' },
