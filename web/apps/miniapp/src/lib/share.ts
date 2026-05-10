@@ -18,15 +18,32 @@ export function shareToStory(cardUrl: string, roastText: string): void {
   void shareToChat(cardUrl, roastText);
 }
 
+/**
+ * Build a short card URL (≤ ~100 chars) safe to pass via switchInlineQuery.
+ * Strips `t` (roast text) and `a` (avatar URL) — card.tsx resolves these
+ * server-side via the roast ID lookup and /api/avatar proxy.
+ */
+function shortCardUrl(cardUrl: string): string {
+  try {
+    const u = new URL(cardUrl);
+    u.searchParams.delete('t');
+    u.searchParams.delete('a');
+    return u.toString().slice(0, 256);
+  } catch {
+    return cardUrl.slice(0, 256);
+  }
+}
+
 export async function shareToChat(cardUrl: string, roastText: string): Promise<void> {
   const text = storyCaption(roastText);
 
   // SDK available (proper Mini App context)
   if (sdkAvailable()) {
-    // Prefer switchInlineQuery — lets user pick any chat
+    // switchInlineQuery — passes a short card URL so the bot returns a photo result.
+    // Full URL would exceed Telegram's 256-char query limit, so we strip `t` and `a`.
     try {
       if (typeof tg.switchInlineQuery === 'function') {
-        tg.switchInlineQuery(roastText.slice(0, 50), ['users', 'groups', 'channels']);
+        tg.switchInlineQuery(shortCardUrl(cardUrl), ['users', 'groups', 'channels']);
         return;
       }
     } catch { }
