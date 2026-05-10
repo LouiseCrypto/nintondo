@@ -729,6 +729,9 @@ async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE
                     chat_id=user.id,
                     photo=card_url,
                     disable_notification=True,
+                    read_timeout=30,
+                    write_timeout=30,
+                    connect_timeout=15,
                 )
                 file_id = temp_msg.photo[-1].file_id
                 logger.info(">>> Upload OK — file_id=%s", file_id)
