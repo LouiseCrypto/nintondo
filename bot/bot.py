@@ -718,31 +718,20 @@ async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE
         user = query.from_user
         query_text = (query.query or '').strip()
 
-        # ── Card share (from Mini App "Send to Chat" button) ──────────────────
-        # Format: "card:userId:roastId:name:charTag"
-        # Bot reconstructs the card URL and answers instantly with
-        # InlineQueryResultPhoto — no slow pre-upload needed.
-        if query_text.startswith('card:'):
-            parts = query_text.split(':', 4)
-            if len(parts) == 5:
-                _, uid, rid, name, char = parts
-            else:
-                uid, rid, name, char = '0', 'r000', 'anon', 'general'
-
-            card_url = f"{CARD_API_URL}/api/card?{urllib.parse.urlencode({'u': uid, 'r': rid, 'n': name, 'c': char})}"
-            logger.info(">>> INLINE CARD SHARE — user=%s card_url=%s", user.id, card_url)
-
-            result = InlineQueryResultPhoto(
+        # ── Cached card share (from Mini App "Send to Chat" button) ───────────
+        # The Mini App pre-uploads the card via /api/prepare-share, then passes
+        # "cached:<file_id>" through switchInlineQuery. The bot returns the
+        # cached photo instantly — no fetching or uploading during inline query.
+        if query_text.startswith('cached:'):
+            file_id = query_text[7:]
+            logger.info(">>> CACHED CARD SHARE — user=%s file_id=%s", user.id, file_id[:30])
+            result = InlineQueryResultCachedPhoto(
                 id=str(uuid.uuid4()),
-                photo_url=card_url,
-                thumbnail_url=f"{CARD_API_URL}/characters/{char}.png",
-                photo_width=540,
-                photo_height=960,
-                title='🎮 Your Nintondo Roast Card',
+                photo_file_id=file_id,
                 caption='🎮 My Nintondo Roast Card\n\n$NINTONDO on TON | via @nintondobot',
             )
             await query.answer([result], cache_time=0, is_personal=True)
-            logger.info(">>> Inline answer sent instantly")
+            logger.info(">>> Inline answer sent instantly (cached)")
             return
 
         # ── Standard inline roast results ─────────────────────────────────────

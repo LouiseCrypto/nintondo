@@ -22,6 +22,7 @@
   let loading   = $state(false);   // button loading state while fetch is in-flight
   let cardLoaded = $state(false);
   let diagResult = $state<string | null>(null);
+  let sharing    = $state(false);
 
   // Slot-machine animation
   const SLOT_PHRASES = [
@@ -93,6 +94,17 @@
       hapticNotification('error');
     } finally {
       loading = false;
+    }
+  }
+
+  async function handleShareToChat() {
+    if (sharing || !result) return;
+    sharing = true;
+    hapticImpact('light');
+    try {
+      await shareToChat(result.cardUrl, result.roast.text);
+    } finally {
+      sharing = false;
     }
   }
 
@@ -203,9 +215,11 @@
 
         <button
           class="btn btn-secondary"
-          onclick={() => { hapticImpact('light'); void shareToChat(result!.cardUrl, result!.roast.text); }}
+          class:btn-loading={sharing}
+          disabled={sharing}
+          onclick={handleShareToChat}
         >
-          💬 Send to Chat
+          {sharing ? '⏳ Preparing...' : '💬 Send to Chat'}
         </button>
 
         <button class="btn btn-ghost" onclick={handleRoastAgain}>

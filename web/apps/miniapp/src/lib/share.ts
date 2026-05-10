@@ -1,4 +1,4 @@
-import { tg } from './tg.js';
+import { tg, getUserId } from './tg.js';
 
 function storyCaption(roastText: string): string {
   return `${roastText}\n\nvia @nintondobot · $NINTONDO on TON`;
@@ -19,17 +19,24 @@ export function shareToStory(cardUrl: string, roastText: string): void {
 }
 
 /**
- * Extract compact card params from the full card URL.
- * Format: "card:userId:roastId:name:charTag"
- * The bot reconstructs the full URL server-side.
+ * Pre-upload the card image to Telegram via /api/prepare-share.
+ * Returns the cached file_id, or null on failure.
  */
-function cardShareCode(cardUrl: string): string {
+async function prepareShare(cardUrl: string): Promise<string | null> {
+  const userId = getUserId();
+  if (!userId) return null;
   try {
-    const u = new URL(cardUrl);
-    const p = u.searchParams;
-    return `card:${p.get('u') ?? '0'}:${p.get('r') ?? 'r000'}:${p.get('n') ?? 'anon'}:${p.get('c') ?? 'general'}`;
+    const res = await fetch('/api/prepare-share', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, cardUrl }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as { fileId?: string };
+    return data.fileId ?? null;
   } catch {
-    return cardUrl.slice(0, 256);
+    return null;
   }
 }
 
@@ -37,12 +44,13 @@ export async function shareToChat(cardUrl: string, roastText: string): Promise<v
   const text = storyCaption(roastText);
 
   // SDK available (proper Mini App context)
-  if (sdkAvailable()) {
-    // switchInlineQuery — passes a compact code (not a URL) so the bot can
-    // reconstruct the card URL and return a photo result.
+  if (sdkAvailable() && typeof tg.switchInlineQuery === 'function') {
+    // Pre-upload the card to Telegram BEFORE opening the chat picker.
+    // This way the inline result loads instantly when the user picks a chat.
     try {
-      if (typeof tg.switchInlineQuery === 'function') {
-        tg.switchInlineQuery(cardShareCode(cardUrl), ['users', 'groups', 'channels']);
+      const fileId = await prepareShare(cardUrl);
+      if (fileId) {
+        tg.switchInlineQuery(`cached:${fileId}`, ['users', 'groups', 'channels']);
         return;
       }
     } catch { }
