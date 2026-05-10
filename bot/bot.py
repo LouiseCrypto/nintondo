@@ -31,7 +31,7 @@ import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InlineQueryResultPhoto, InputTextMessageContent, Update, WebAppInfo
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InlineQueryResultCachedPhoto, InputTextMessageContent, Update, WebAppInfo
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
@@ -719,19 +719,34 @@ async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE
         query_text = (query.query or '').strip()
 
         # ── Card URL share (from Mini App "Send to Chat" button) ──────────────
-        # The Mini App calls switchInlineQuery(cardUrl) — detect it here and
-        # return a photo result so the actual card image is sent to the chat.
+        # The Mini App calls switchInlineQuery(shortCardUrl) — detect it here.
+        # We pre-upload the card image to Telegram (send_photo to the user's DM,
+        # grab the file_id, delete the temp message) then return a cached photo
+        # result. This avoids Telegram timing out on the slow @vercel/og render.
         if query_text.startswith('https://'):
             card_url = query_text[:512]
-            result = InlineQueryResultPhoto(
-                id=str(uuid.uuid4()),
-                photo_url=card_url,
-                thumbnail_url=card_url,
-                photo_width=540,
-                photo_height=960,
-                caption='🎮 My Nintondo Roast Card\n\n$NINTONDO on TON | via @nintondobot',
-            )
-            await query.answer([result], cache_time=0, is_personal=True)
+            try:
+                # Upload card image to Telegram via a temp message to the user
+                temp_msg = await context.bot.send_photo(
+                    chat_id=user.id,
+                    photo=card_url,
+                    disable_notification=True,
+                )
+                file_id = temp_msg.photo[-1].file_id
+                # Clean up the temp message
+                try:
+                    await context.bot.delete_message(chat_id=user.id, message_id=temp_msg.message_id)
+                except Exception:
+                    pass  # non-critical if delete fails
+
+                result = InlineQueryResultCachedPhoto(
+                    id=str(uuid.uuid4()),
+                    photo_file_id=file_id,
+                    caption='🎮 My Nintondo Roast Card\n\n$NINTONDO on TON | via @nintondobot',
+                )
+                await query.answer([result], cache_time=0, is_personal=True)
+            except Exception:
+                logger.exception("Error uploading card for inline share (url=%s)", card_url)
             return
 
         # ── Standard inline roast results ─────────────────────────────────────
