@@ -274,7 +274,7 @@ export default async function handler(request: Request): Promise<Response> {
     </div>
   );
 
-  // ── Card JSX (540 × 960) ───────────────────────────────────────────────────
+  // ── Card JSX (540 × 960) — section heights: 80+36+55+424+170+130+65 = 960
   const card = (
     <div style={{ width: 540, height: 960, display: 'flex', flexDirection: 'column',
       background: 'linear-gradient(180deg, #2d1a4e 0%, #1a0f2e 100%)',
@@ -317,8 +317,8 @@ export default async function handler(request: Request): Promise<Response> {
       </div>
 
       {/* ILLUSTRATION */}
-      <div style={{ display: 'flex', flexDirection: 'column', height: 460,
-        background: 'linear-gradient(180deg, #3d1a6e 0%, #2d0a4e 55%, #1a0a2e 100%)', padding: '20px 24px 14px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: 424,
+        background: 'linear-gradient(180deg, #3d1a6e 0%, #2d0a4e 55%, #1a0a2e 100%)', padding: '16px 24px 10px' }}>
         <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Avatar */}
           <div style={{ display: 'flex', width: 160, height: 160, borderRadius: '50%',
