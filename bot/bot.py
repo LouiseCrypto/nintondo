@@ -720,6 +720,8 @@ async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         # ── Card share (from Mini App "Send to Chat" button) ──────────────────
         # Format: "card:userId:roastId:name:charTag"
+        # Bot reconstructs the card URL and answers instantly with
+        # InlineQueryResultPhoto — no slow pre-upload needed.
         if query_text.startswith('card:'):
             parts = query_text.split(':', 4)
             if len(parts) == 5:
@@ -730,76 +732,17 @@ async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE
             card_url = f"{CARD_API_URL}/api/card?{urllib.parse.urlencode({'u': uid, 'r': rid, 'n': name, 'c': char})}"
             logger.info(">>> INLINE CARD SHARE — user=%s card_url=%s", user.id, card_url)
 
-            try:
-                logger.info(">>> Uploading card image to Telegram...")
-                temp_msg = await context.bot.send_photo(
-                    chat_id=user.id,
-                    photo=card_url,
-                    disable_notification=True,
-                    read_timeout=30,
-                    write_timeout=30,
-                    connect_timeout=15,
-                )
-                file_id = temp_msg.photo[-1].file_id
-                logger.info(">>> Upload OK — file_id=%s", file_id)
-
-                # Clean up temp message
-                try:
-                    await context.bot.delete_message(chat_id=user.id, message_id=temp_msg.message_id)
-                except Exception:
-                    pass
-
-                result = InlineQueryResultCachedPhoto(
-                    id=str(uuid.uuid4()),
-                    photo_file_id=file_id,
-                    caption='🎮 My Nintondo Roast Card\n\n$NINTONDO on TON | via @nintondobot',
-                )
-                await query.answer([result], cache_time=0, is_personal=True)
-                logger.info(">>> Inline answer sent OK")
-            except Exception:
-                logger.exception(">>> CARD SHARE FAILED for url=%s", card_url)
-                # Fallback: send the card URL as a text link
-                try:
-                    fallback = InlineQueryResultArticle(
-                        id=str(uuid.uuid4()),
-                        title='🎮 Share your Nintondo Roast Card',
-                        input_message_content=InputTextMessageContent(
-                            message_text=f'🎮 My Nintondo Roast Card\n\n{card_url}\n\n$NINTONDO on TON | via @nintondobot',
-                        ),
-                        description='Tap to share your card link',
-                    )
-                    await query.answer([fallback], cache_time=0, is_personal=True)
-                    logger.info(">>> Fallback article answer sent")
-                except Exception:
-                    logger.exception(">>> Fallback also failed")
-            return
-
-        # Also handle raw URLs (backward compat / direct inline usage)
-        if query_text.startswith('https://'):
-            card_url = query_text[:512]
-            logger.info(">>> INLINE CARD SHARE (url) — user=%s url=%s", user.id, card_url)
-            try:
-                temp_msg = await context.bot.send_photo(
-                    chat_id=user.id,
-                    photo=card_url,
-                    disable_notification=True,
-                    read_timeout=30,
-                    write_timeout=30,
-                    connect_timeout=15,
-                )
-                file_id = temp_msg.photo[-1].file_id
-                try:
-                    await context.bot.delete_message(chat_id=user.id, message_id=temp_msg.message_id)
-                except Exception:
-                    pass
-                result = InlineQueryResultCachedPhoto(
-                    id=str(uuid.uuid4()),
-                    photo_file_id=file_id,
-                    caption='🎮 My Nintondo Roast Card\n\n$NINTONDO on TON | via @nintondobot',
-                )
-                await query.answer([result], cache_time=0, is_personal=True)
-            except Exception:
-                logger.exception(">>> CARD SHARE (url) FAILED")
+            result = InlineQueryResultPhoto(
+                id=str(uuid.uuid4()),
+                photo_url=card_url,
+                thumbnail_url=f"{CARD_API_URL}/characters/{char}.png",
+                photo_width=540,
+                photo_height=960,
+                title='🎮 Your Nintondo Roast Card',
+                caption='🎮 My Nintondo Roast Card\n\n$NINTONDO on TON | via @nintondobot',
+            )
+            await query.answer([result], cache_time=0, is_personal=True)
+            logger.info(">>> Inline answer sent instantly")
             return
 
         # ── Standard inline roast results ─────────────────────────────────────
