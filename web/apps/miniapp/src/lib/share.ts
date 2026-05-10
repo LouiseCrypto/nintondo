@@ -19,51 +19,46 @@ export function shareToStory(cardUrl: string, roastText: string): void {
 }
 
 /**
- * Pre-upload the card image to Telegram via /api/prepare-share.
- * Returns the cached file_id, or null on failure.
+ * Send the card photo to the user's DM with the bot,
+ * then navigate to the bot chat so they can forward it.
  */
-async function prepareShare(cardUrl: string): Promise<string | null> {
-  const userId = getUserId();
-  if (!userId) return null;
-  try {
-    const res = await fetch('/api/prepare-share', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, cardUrl }),
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (!res.ok) return null;
-    const data = await res.json() as { fileId?: string };
-    return data.fileId ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export async function shareToChat(cardUrl: string, roastText: string): Promise<void> {
-  const text = storyCaption(roastText);
+  const userId = getUserId();
 
-  // SDK available (proper Mini App context)
-  if (sdkAvailable() && typeof tg.switchInlineQuery === 'function') {
-    // Pre-upload the card to Telegram BEFORE opening the chat picker.
-    // This way the inline result loads instantly when the user picks a chat.
+  if (userId) {
     try {
-      const fileId = await prepareShare(cardUrl);
-      if (fileId) {
-        tg.switchInlineQuery(`cached:${fileId}`, ['users', 'groups', 'channels']);
+      const res = await fetch('/api/prepare-share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          cardUrl,
+          caption: `🎮 My Nintondo Roast Card\n\n${roastText}\n\n$NINTONDO on TON | via @nintondobot\n\n👆 Forward this message to share!`,
+        }),
+        signal: AbortSignal.timeout(20_000),
+      });
+
+      if (res.ok) {
+        // Navigate to the bot's DM where the card was just sent
+        if (sdkAvailable()) {
+          tg.openTelegramLink('https://t.me/NintondoBot');
+        }
         return;
       }
     } catch { }
+  }
 
-    // Fall back to tg:// deep link share dialog
+  // Fallback: deep link share
+  if (sdkAvailable()) {
     try {
+      const text = storyCaption(roastText);
       const deepLink = `tg://msg_url?url=${encodeURIComponent(cardUrl)}&text=${encodeURIComponent(text)}`;
       tg.openTelegramLink(deepLink);
       return;
     } catch { }
   }
 
-  // No SDK — copy to clipboard with clear instruction
+  // Last resort: clipboard
   try {
     await navigator.clipboard.writeText(cardUrl);
   } catch { }

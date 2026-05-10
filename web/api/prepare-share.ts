@@ -1,13 +1,10 @@
 /**
  * POST /api/prepare-share
- * Body: { userId: number, cardUrl: string }
+ * Body: { userId: number, cardUrl: string, caption?: string }
  *
- * Downloads the card image, uploads it to Telegram via the Bot API
- * (temp message to the user's DM), grabs the cached file_id, deletes
- * the temp message, and returns { fileId }.
- *
- * The Mini App calls this BEFORE switchInlineQuery so the inline result
- * is instant (no slow image fetch during inline query answering).
+ * Downloads the card image, sends it to the user's DM with the bot
+ * via the Telegram Bot API. The photo stays in the DM so the user
+ * can forward it to any chat.
  */
 
 export const config = { runtime: 'edge' };
@@ -22,9 +19,9 @@ export default async function handler(request: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: 'Bot token not configured' }), { status: 503 });
   }
 
-  let body: { userId?: number; cardUrl?: string };
+  let body: { userId?: number; cardUrl?: string; caption?: string };
   try {
-    body = await request.json() as { userId?: number; cardUrl?: string };
+    body = await request.json() as { userId?: number; cardUrl?: string; caption?: string };
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 });
   }
@@ -34,6 +31,8 @@ export default async function handler(request: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: 'Missing userId or cardUrl' }), { status: 400 });
   }
 
+  const caption = body.caption ?? '🎮 Your Nintondo Roast Card\n\nForward this message to share it with friends!';
+
   try {
     // 1. Download card image (same Vercel deployment — fast)
     const imgRes = await fetch(cardUrl);
@@ -42,39 +41,26 @@ export default async function handler(request: Request): Promise<Response> {
     }
     const imgBlob = await imgRes.blob();
 
-    // 2. Upload to Telegram via sendPhoto (temp message to user's DM)
+    // 2. Send to user's DM with caption — KEEP the message so they can forward it
     const form = new FormData();
     form.append('chat_id', String(userId));
     form.append('photo', imgBlob, 'card.png');
-    form.append('disable_notification', 'true');
+    form.append('caption', caption);
 
     const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
       method: 'POST',
       body: form,
     });
-    const tgData = await tgRes.json() as {
-      ok: boolean;
-      result?: { message_id: number; photo: Array<{ file_id: string }> };
-    };
+    const tgData = await tgRes.json() as { ok: boolean; description?: string };
 
-    if (!tgData.ok || !tgData.result?.photo?.length) {
-      return new Response(JSON.stringify({ error: 'Telegram upload failed' }), { status: 502 });
+    if (!tgData.ok) {
+      return new Response(JSON.stringify({ error: tgData.description ?? 'Telegram send failed' }), { status: 502 });
     }
 
-    const fileId = tgData.result.photo[tgData.result.photo.length - 1].file_id;
-    const messageId = tgData.result.message_id;
-
-    // 3. Delete the temp message (non-critical)
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/deleteMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: userId, message_id: messageId }),
-    }).catch(() => {});
-
-    return new Response(JSON.stringify({ fileId }), {
+    return new Response(JSON.stringify({ ok: true }), {
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err) {
+  } catch {
     return new Response(
       JSON.stringify({ error: 'Prepare share failed' }),
       { status: 500 },
